@@ -10,3 +10,4 @@ add_library(dag_factory INTERFACE)
 target_include_directories(dag_factory INTERFACE include)
 
 add_subdirectory(test)
+

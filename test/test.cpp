@@ -3,6 +3,7 @@
 #include "dag/dag_factory.h"
 
 using namespace dag;
+namespace {
 struct Base {};
 
 struct A : public Base {};
@@ -16,7 +17,8 @@ struct C : public Base {
 struct D : public Base {
   D(B &b, C &c) {}
 };
-
+}  // namespace
+//------------------------------------------------------------------------------
 TEST_CASE(
     "factory functions tagged with DAG_SHARED() returns the same instance across multiple calls",
     "Blueprint") {
@@ -33,7 +35,7 @@ TEST_CASE(
 
   REQUIRE(dag->entryPoints().size() == 1);
 }
-
+//------------------------------------------------------------------------------
 TEST_CASE("normal factory function returns a new instance across multiple calls", "Blueprint") {
   struct System : public Blueprint<A> {
     A &a() { return dag->create<A>(); }
@@ -47,7 +49,7 @@ TEST_CASE("normal factory function returns a new instance across multiple calls"
 
   REQUIRE(dag->entryPoints().size() == 2);
 }
-
+//------------------------------------------------------------------------------
 TEST_CASE("factory can be overriden using runtime polymorphism", "Blueprint") {
   struct System : public Blueprint<B> {
     A &a() { return dag->create<A>(); }
@@ -65,7 +67,8 @@ TEST_CASE("factory can be overriden using runtime polymorphism", "Blueprint") {
 
   REQUIRE(dag->entryPoints().size() == 2);
 }
-
+//------------------------------------------------------------------------------
+namespace {
 template <typename Derived>
 struct CRTPBase : public Blueprint<B> {
   Derived *derived = static_cast<Derived *>(this);
@@ -87,8 +90,8 @@ struct CRTPSystem2 : public CRTPSystem<CRTPSystem2> {
   using Blueprint<B>::dag;
   void config() { d(); }
 };
+}  // namespace
 
-// namespace aaa
 TEST_CASE("factory can be overriden using curiously recurring template", "Blueprint") {
   auto dag = bootstrap<CRTPSystem2>(std::mem_fn(&CRTPSystem2::config));
 
