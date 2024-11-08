@@ -76,24 +76,19 @@ private:
 
 template <typename T> struct Bluepoint {
   using EntryPoint = T;
-  DagFactory<T> *m_factory = nullptr;
-
-  template<typename R, typename ... Args> R& create(Args &&... args) {
-    return m_factory->template dedicated<R>(std::forward<Args>(args)...);
-  }
-
+  DagFactory<T> *dag = nullptr;
 };
 
 template <typename T>
 std::unique_ptr<Dag<typename T::EntryPoint>>
-bootstrap(std::function<void(T &)> config) {
+bootstrap(std::function<void(T *)> config) {
   std::unique_ptr<MutableDag<typename T::EntryPoint>> dag =
       std::make_unique<MutableDag<typename T::EntryPoint>>();
   std::unordered_map<std::type_index, void *> shared;
   DagFactory<typename T::EntryPoint> factory{*dag, shared};
   T bluepoint;
-  bluepoint.m_factory = &factory;
-  config(bluepoint);
+  bluepoint.dag = &factory;
+  config(&bluepoint);
   return dag;
 }
 
