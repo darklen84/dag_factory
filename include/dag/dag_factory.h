@@ -77,6 +77,11 @@ private:
 template <typename T> struct Bluepoint {
   using EntryPoint = T;
   DagFactory<T> *m_factory = nullptr;
+
+  template<typename R, typename ... Args> R& create(Args &&... args) {
+    return m_factory->template dedicated<R>(std::forward<Args>(args)...);
+  }
+
 };
 
 template <typename T>
