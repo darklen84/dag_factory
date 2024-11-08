@@ -1,7 +1,4 @@
 #include <catch2/catch.hpp>
-#include <iostream>
-#include <ostream>
-#include <string>
 
 #include "dag/dag_factory.h"
 
