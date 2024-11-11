@@ -21,13 +21,20 @@ struct Dag {
 };
 
 #define DAG_COMBINE(n, id) n##id
-#define _DAG_SHARED(v, line)                                                         \
-  {                                                                                  \
-    return dag->shared<v>([this]() -> v & { return DAG_COMBINE(factory, line)(); }); \
-  }                                                                                  \
+#define _DAG_SHARED(v, line)                                       \
+  {                                                                \
+    return this->_hidden_state->template shared<v>(                \
+        [this]() -> v & { return DAG_COMBINE(factory, line)(); }); \
+  }                                                                \
   v &DAG_COMBINE(factory, line)()
 
 #define DAG_SHARED(v) _DAG_SHARED(v, __LINE__)
+
+#define DAG_TEMPLATE_FACTORY()                                                             \
+  template <typename NodeType, typename... Args>                                           \
+  NodeType &make_node(Args &&...args) {                                                    \
+    return this->_hidden_state->template make_node<NodeType>(std::forward<Args>(args)...); \
+  }
 
 template <typename EntryPoint>
 struct MutableDag : public Dag<EntryPoint> {
@@ -85,7 +92,8 @@ struct DagFactory {
 template <typename T>
 struct Blueprint {
   using EntryPoint = T;
-  DagFactory<T> *dag = nullptr;
+  DagFactory<T> *_hidden_state = nullptr;
+  DAG_TEMPLATE_FACTORY()
 };
 
 template <typename T>
@@ -95,7 +103,7 @@ std::unique_ptr<Dag<typename T::EntryPoint>> bootstrap(std::function<void(T *)> 
   std::unordered_map<std::type_index, void *> shared;
   DagFactory<typename T::EntryPoint> factory{*dag, shared};
   T bluepoint;
-  bluepoint.dag = &factory;
+  bluepoint._hidden_state = &factory;
   config(&bluepoint);
   return dag;
 }
