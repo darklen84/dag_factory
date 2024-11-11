@@ -51,7 +51,7 @@ struct MutableDag : public Dag<EntryPoint> {
 template <typename EntryPoint>
 struct DagFactory {
   template <typename T, typename... Args>
-  T &create(Args &&...args) {
+  T &make_node(Args &&...args) {
     T *o = new T(std::forward<Args>(args)...);
     m_Dag.m_Components.emplace_back(o, std::type_index(typeid(T)),
                                     [](void *p) { delete static_cast<T *>(p); });
