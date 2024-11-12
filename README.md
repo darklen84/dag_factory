@@ -6,4 +6,5 @@ Minimal dependency injection framework for C++
 - support custom allocator
 - allow custom constructor in Blueprint class.
 - use custom unique_ptr for the return value of bootstrap.
+- DAG_SHARED() needs to support types with comma.
 

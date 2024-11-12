@@ -19,8 +19,9 @@ struct D : public Base {
 };
 
 template <typename T>
-struct System : public Blueprint<T> {
+struct System : public Blueprint<System<T>> {
   DAG_TEMPLATE_FACTORY()
+  using EntryPoint = T;
   A &a() { return make_node<A>(); }
   virtual B &b() DAG_SHARED(B) { return make_node<B>(a()); }
   C &c() { return make_node<C>(a(), b()); }
@@ -33,7 +34,7 @@ struct System : public Blueprint<T> {
 TEST_CASE(
     "factory functions tagged with DAG_SHARED() returns the same instance across multiple calls",
     "Blueprint") {
-  auto dag = bootstrap<System<B>>(std::mem_fn(&System<B>::config));
+  auto dag = bootstrap<System<B>>()(std::mem_fn(&System<B>::config));
   ;
 
   REQUIRE(dag->entryPoints().size() == 1);
@@ -41,7 +42,7 @@ TEST_CASE(
 
 //------------------------------------------------------------------------------
 TEST_CASE("normal factory function returns a new instance across multiple calls", "Blueprint") {
-  auto dag = bootstrap<System<A>>(std::mem_fn(&System<A>::config));
+  auto dag = bootstrap<System<A>>()(std::mem_fn(&System<A>::config));
 
   REQUIRE(dag->entryPoints().size() == 2);
 }
@@ -51,15 +52,17 @@ TEST_CASE("factory can be overriden using runtime polymorphism", "Blueprint") {
     B &b() override { return make_node<B>(a()); }
   };
 
-  auto dag = bootstrap<System2>(std::mem_fn(&System2::config));
+  auto dag = bootstrap<System2>()(std::mem_fn(&System2::config));
 
   REQUIRE(dag->entryPoints().size() == 2);
 }
+
 //------------------------------------------------------------------------------
 namespace {
 template <typename Derived>
-struct CRTPBase : public Blueprint<B> {
+struct CRTPBase : public Blueprint<Derived> {
   DAG_TEMPLATE_FACTORY()
+  using EntryPoint = B;
   Derived *derived = static_cast<Derived *>(this);
 
   A &a() { return make_node<A>(); }
@@ -76,21 +79,12 @@ struct CRTPSystem : public CRTPBase<Derived> {
 };
 
 struct CRTPSystem2 : public CRTPSystem<CRTPSystem2> {
-  using Blueprint<B>::_hidden_state;
   void config() { d(); }
 };
 }  // namespace
 
 TEST_CASE("factory can be overriden using curiously recurring template", "Blueprint") {
-  auto dag = bootstrap<CRTPSystem2>(std::mem_fn(&CRTPSystem2::config));
+  auto dag = bootstrap<CRTPSystem2>()(std::mem_fn(&CRTPSystem2::config));
 
   REQUIRE(dag->entryPoints().size() == 2);
 }
-
-struct System : public Blueprint<B> {
-  A &a() { return make_node<A>(); }
-  B &b() DAG_SHARED(B) { return make_node<B>(a()); }
-  C &c() { return make_node<C>(a(), b()); }
-  D &d() { return make_node<D>(b(), c()); }
-  void config() { d(); }
-};

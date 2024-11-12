@@ -9,5 +9,12 @@ add_library(dag_factory INTERFACE)
 
 target_include_directories(dag_factory INTERFACE include)
 
+install(TARGETS dag_factory
+        EXPORT dag_factoryTargets
+        INCLUDES DESTINATION include
+        )
+
+install(DIRECTORY include/ DESTINATION include)
+
 add_subdirectory(test)
 
