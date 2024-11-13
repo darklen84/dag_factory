@@ -48,7 +48,7 @@ TEST_CASE("normal factory function returns a new instance across multiple calls"
   REQUIRE(dag->entryPoints().size() == 2);
 }
 //------------------------------------------------------------------------------
-TEST_CASE("blueprint can be overriden using runtime polymorphism", "Blueprint") {
+TEST_CASE("factory can be overriden using runtime polymorphism", "Blueprint") {
   struct System2 : public System<B> {
     B &b() override { return make_node<B>(a()); }
   };
@@ -57,32 +57,6 @@ TEST_CASE("blueprint can be overriden using runtime polymorphism", "Blueprint") 
 
   REQUIRE(dag->entryPoints().size() == 2);
 }
-
-TEST_CASE("support blueprint without EntryPoint", "Blueprint") {
-  struct System : public Blueprint<System> {
-    A &a() { return make_node<A>(); }
-    B &b() { return make_node<B>(a()); }
-    C &c() { return make_node<C>(a(), b()); }
-    D &d() { return make_node<D>(b(), c()); }
-    void config() { d(); }
-  };
-  auto dag = bootstrap<System>()(std::mem_fn(&System::config));
-
-  REQUIRE(dag->entryPoints().size() == 0);
-}
-
-/*
-TEST_CASE("Blueprints supports sub-graph", "Blueprint") {
-  struct LargeSystem : public Blueprint<LargeSystem> {
-    using EntryPoint = std::pair<A, B>;
-    EntryPoint& ab() {
-      return make_node<EntryPoint>(a(), b());
-    }
-    A &a() { return *this->do_make_graph<System<A>>()[0]; }
-    B &b() { return *this->do_make_graph<System<B>>()[0]; }
-  };
-}
-*/
 
 //------------------------------------------------------------------------------
 namespace {
@@ -110,7 +84,7 @@ struct CRTPSystem2 : public CRTPSystem<CRTPSystem2> {
 };
 }  // namespace
 
-TEST_CASE("blueprint can be overriden using curiously recurring template", "Blueprint") {
+TEST_CASE("factory can be overriden using curiously recurring template", "Blueprint") {
   auto dag = bootstrap<CRTPSystem2>()(std::mem_fn(&CRTPSystem2::config));
 
   REQUIRE(dag->entryPoints().size() == 2);
