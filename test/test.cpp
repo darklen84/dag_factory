@@ -104,6 +104,26 @@ TEST_CASE("DAG_SHARE() accepts types with comma", "Blueprint") {
   REQUIRE(dag->entryPoints().size() == 1);
 }
 
+TEST_CASE("Blueprints with custom constructor are supported", "Blueprint") {
+  struct System : public Blueprint<System> {
+    explicit System(int k, int v) : key(k), value(v) {}
+    int key;
+    int value;
+    using EntryPoint = std::map<int, int>;
+
+    std::map<int, int> &a() DAG_SHARED(std::map<int, int>) {
+      auto &map = make_node<std::map<int, int>>();
+      map[key] = value;
+      return map;
+    }
+    void config() { a(); }
+  };
+  auto dag = bootstrap<System>()(std::mem_fn(&System::config), 1, 2);
+
+  REQUIRE(dag->entryPoints().size() == 1);
+  REQUIRE(dag->entryPoints()[0]->operator[](1) == 2);
+}
+
 //------------------------------------------------------------------------------
 TEST_CASE("factory use and propagate the memory resource", "Resource") {
   struct System : public Blueprint<System> {
@@ -126,16 +146,3 @@ TEST_CASE("factory use and propagate the memory resource", "Resource") {
   REQUIRE(dag->entryPoints()[0][0].get_allocator().resource() == memory);
   REQUIRE(dag->entryPoints()[0][0][0].get_allocator().resource() == memory);
 }
-
-/*
-struct SystemA : public Blueprint<SystemA> {
-  using EntryPoint = std::string;
-
-  struct B : public Blueprint<B> {
-    using EntryPoint = std::string;
-    std::string &b() { return make_node<std::string>(); }
-  };
-
-  EntryPoint &a() { return this->B::b(); }
-  void config() { b(); }
-};*/

@@ -134,8 +134,9 @@ struct BootStrapper {
     m_temporary_memory = temporary_memory;
   }
   BootStrapper(const BootStrapper<T> &) = default;
-
-  unique_ptr<Dag<typename T::EntryPoint>> operator()(std::function<void(T *)> config) {
+  template <typename... Args>
+  unique_ptr<Dag<typename T::EntryPoint>> operator()(std::function<void(T *)> config,
+                                                     Args &&...args) {
     std::pmr::polymorphic_allocator<MutableDag<typename T::EntryPoint>> alloc{m_memory};
     unique_ptr<MutableDag<typename T::EntryPoint>> dag =
         make_unique_on_memory<MutableDag<typename T::EntryPoint>>(m_memory, m_memory);
@@ -143,7 +144,7 @@ struct BootStrapper {
     std::pmr::unordered_map<std::type_index, void *> shared(m_temporary_memory);
 
     DagFactory<typename T::EntryPoint> factory{*dag, shared};
-    T bluepoint;
+    T bluepoint{std::forward<Args>(args)...};
     bluepoint._hidden_state = &factory;
     config(&bluepoint);
     return dag;
