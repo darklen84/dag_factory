@@ -109,8 +109,13 @@ struct DagFactory {
   shared_map &m_shared;
 };
 
+struct EntrypointBase {
+  virtual ~EntrypointBase() = default;
+};
+
 template <typename Derived>
 struct Blueprint {
+  using EntryPoint = EntrypointBase;
   void *_hidden_state = nullptr;
 
   template <typename NodeType, typename... Args>
