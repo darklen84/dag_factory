@@ -108,11 +108,14 @@ struct DagFactory {
   MutableDag<EntryPoint> &m_Dag;
   shared_map &m_shared;
 };
+struct EntrypointBase {
+  virtual ~EntrypointBase() = default;
+};
 
 template <typename Derived>
 struct Blueprint {
   void *_hidden_state = nullptr;
-
+  using EntryPoint = EntrypointBase;
   template <typename NodeType, typename... Args>
   NodeType &do_make_node(Args &&...args) {
     auto dag = static_cast<DagFactory<typename Derived::EntryPoint> *>(_hidden_state);
@@ -128,15 +131,30 @@ struct Blueprint {
 
 template <typename T>
 struct BootStrapper {
-  explicit BootStrapper(std::pmr::memory_resource *memory,
-                        std::pmr::memory_resource *temporary_memory) {
+  explicit BootStrapper(
+      std::pmr::memory_resource *memory = std::pmr::get_default_resource(),
+      std::pmr::memory_resource *temporary_memory = std::pmr::get_default_resource()) {
     m_memory = memory;
     m_temporary_memory = temporary_memory;
   }
   BootStrapper(const BootStrapper<T> &) = default;
   template <typename... Args>
-  unique_ptr<Dag<typename T::EntryPoint>> operator()(std::function<void(T *)> config,
-                                                     Args &&...args) {
+  unique_ptr<Dag<typename T::EntryPoint>> loadDag(std::function<void(T *)> config, Args &&...args) {
+    std::pmr::polymorphic_allocator<MutableDag<typename T::EntryPoint>> alloc{m_memory};
+    unique_ptr<MutableDag<typename T::EntryPoint>> dag =
+        make_unique_on_memory<MutableDag<typename T::EntryPoint>>(m_memory, m_memory);
+
+    std::pmr::unordered_map<std::type_index, void *> shared(m_temporary_memory);
+
+    DagFactory<typename T::EntryPoint> factory{*dag, shared};
+    T blueprint{std::forward<Args>(args)...};
+    blueprint._hidden_state = &factory;
+    config(&blueprint);
+    return dag;
+  }
+
+  template <typename R, typename... Args>
+  unique_ptr<R> load(std::function<R &(T *)> config, Args &&...args) {
     std::pmr::polymorphic_allocator<MutableDag<typename T::EntryPoint>> alloc{m_memory};
     unique_ptr<MutableDag<typename T::EntryPoint>> dag =
         make_unique_on_memory<MutableDag<typename T::EntryPoint>>(m_memory, m_memory);
@@ -146,20 +164,15 @@ struct BootStrapper {
     DagFactory<typename T::EntryPoint> factory{*dag, shared};
     T bluepoint{std::forward<Args>(args)...};
     bluepoint._hidden_state = &factory;
-    config(&bluepoint);
-    return dag;
+    R &result = config(&bluepoint);
+    MutableDag<typename T::EntryPoint> *dag_address = dag.release();
+    auto dag_deleter = dag.get_deleter();
+    return unique_ptr<R>(&result, [dag_address, dag_deleter](void *) { dag_deleter(dag_address); });
   }
 
  private:
   std::pmr::memory_resource *m_memory;
   std::pmr::memory_resource *m_temporary_memory;
 };
-
-template <typename T>
-BootStrapper<T> bootstrap(
-    std::pmr::memory_resource *memory = std::pmr::get_default_resource(),
-    std::pmr::memory_resource *temporary_memory = std::pmr::get_default_resource()) {
-  return BootStrapper<T>(memory, temporary_memory);
-}
 
 }  // namespace dag
