@@ -1,4 +1,5 @@
 #include <catch2/catch.hpp>
+#include <map>
 
 #include "dag/dag_factory.h"
 
@@ -20,7 +21,7 @@ struct D : public Base {
 
 template <typename T>
 struct System : public Blueprint<System<T>> {
-  DAG_TEMPLATE_FACTORY()
+  DAG_TEMPLATE_HELPER()
   using EntryPoint = T;
   A &a() { return make_node<A>(); }
   virtual B &b() DAG_SHARED(B) { return make_node<B>(a()); }
@@ -61,7 +62,7 @@ TEST_CASE("factory can be overriden using runtime polymorphism", "Blueprint") {
 namespace {
 template <typename Derived>
 struct CRTPBase : public Blueprint<Derived> {
-  DAG_TEMPLATE_FACTORY()
+  DAG_TEMPLATE_HELPER()
   using EntryPoint = B;
   Derived *derived = static_cast<Derived *>(this);
 
@@ -73,7 +74,7 @@ struct CRTPBase : public Blueprint<Derived> {
 
 template <typename Derived>
 struct CRTPSystem : public CRTPBase<Derived> {
-  DAG_TEMPLATE_FACTORY()
+  DAG_TEMPLATE_HELPER()
   Derived *derived = static_cast<Derived *>(this);
   B &b() { return make_node<B>(derived->a()); }
 };
@@ -88,3 +89,53 @@ TEST_CASE("factory can be overriden using curiously recurring template", "Bluepr
 
   REQUIRE(dag->entryPoints().size() == 2);
 }
+
+TEST_CASE("DAG_SHARE() accepts types with comma", "Blueprint") {
+  struct System : public Blueprint<System> {
+    using EntryPoint = std::map<int, int>;
+
+    std::map<int, int> &a() DAG_SHARED(std::map<int, int>) {
+      return make_node<std::map<int, int>>();
+    }
+    void config() { a(); }
+  };
+  auto dag = bootstrap<System>()(std::mem_fn(&System::config));
+
+  REQUIRE(dag->entryPoints().size() == 1);
+}
+
+//------------------------------------------------------------------------------
+TEST_CASE("factory use and propagate the memory resource", "Resource") {
+  struct System : public Blueprint<System> {
+    using EntryPoint = std::pmr::vector<std::pmr::string>;
+
+    EntryPoint &a() {
+      EntryPoint &v = make_node<EntryPoint>();
+      v.push_back("a");
+      return v;
+    }
+    void config() { a(); }
+  };
+
+  auto memory = std::pmr::new_delete_resource();
+  auto dag = bootstrap<System>(memory)(std::mem_fn(&System::config));
+  auto entries = dag->entryPoints();
+  REQUIRE(entries.size() == 1);
+
+  REQUIRE(entries[0]->get_allocator().resource() == memory);
+  REQUIRE(dag->entryPoints()[0][0].get_allocator().resource() == memory);
+  REQUIRE(dag->entryPoints()[0][0][0].get_allocator().resource() == memory);
+}
+
+/*
+struct SystemA : public Blueprint<SystemA> {
+  using EntryPoint = std::string;
+
+  struct B : public Blueprint<B> {
+    using EntryPoint = std::string;
+    std::string &b() { return make_node<std::string>(); }
+  };
+
+  EntryPoint &a() { return this->B::b(); }
+  void config() { b(); }
+};*/

@@ -26,15 +26,16 @@ struct Dag {
 };
 
 #define DAG_COMBINE(n, id) n##id
-#define _DAG_SHARED(v, line)                                                                      \
-  {                                                                                               \
-    return this->template do_shared<v>([this]() -> v & { return DAG_COMBINE(factory, line)(); }); \
-  }                                                                                               \
-  v &DAG_COMBINE(factory, line)()
+#define _DAG_SHARED(line, ...)                                               \
+  {                                                                          \
+    return this->template do_shared<__VA_ARGS__>(                            \
+        [this]() -> __VA_ARGS__ & { return DAG_COMBINE(factory, line)(); }); \
+  }                                                                          \
+  __VA_ARGS__ &DAG_COMBINE(factory, line)()
 
-#define DAG_SHARED(v) _DAG_SHARED(v, __LINE__)
+#define DAG_SHARED(...) _DAG_SHARED(__LINE__, __VA_ARGS__)
 
-#define DAG_TEMPLATE_FACTORY()                                                 \
+#define DAG_TEMPLATE_HELPER()                                                  \
   template <typename NodeType, typename... Args>                               \
   NodeType &make_node(Args &&...args) {                                        \
     return this->template do_make_node<NodeType>(std::forward<Args>(args)...); \
@@ -43,7 +44,7 @@ struct Dag {
 template <typename EntryPoint>
 struct MutableDag : public Dag<EntryPoint> {
   explicit MutableDag(std::pmr::memory_resource *memory)
-      : m_Components(memory), m_entryPoints(memory) {}
+      : m_Components(memory), m_entryPoints(memory), m_memory(memory) {}
   ~MutableDag() override {
     // components needs to be deleted in the reverse order of their creation.
     for (auto itr = m_Components.rbegin(); itr != m_Components.rend(); ++itr) {
@@ -58,18 +59,31 @@ struct MutableDag : public Dag<EntryPoint> {
  private:
   std::pmr::vector<std::tuple<void *, std::type_index, deleter>> m_Components;
   std::pmr::vector<EntryPoint *> m_entryPoints;
+  std::pmr::memory_resource *m_memory;
   friend class DagFactory<EntryPoint>;
 };
+
+template <typename T, typename... Args>
+unique_ptr<T> make_unique_on_memory(std::pmr::memory_resource *memory, Args &&...args) {
+  std::pmr::polymorphic_allocator<T> alloc{memory};
+  T *raw = alloc.allocate(1);
+  alloc.construct(raw, std::forward<Args>(args)...);
+  return unique_ptr<T>(raw, [alloc](void *p) mutable {
+    auto obj = static_cast<T *>(p);
+    alloc.destroy(obj);
+    alloc.deallocate(obj, 1);
+  });
+}
 
 template <typename EntryPoint>
 struct DagFactory {
   template <typename T, typename... Args>
   T &make_node(Args &&...args) {
-    T *o = new T(std::forward<Args>(args)...);
-    m_Dag.m_Components.emplace_back(o, std::type_index(typeid(T)),
-                                    [](void *p) { delete static_cast<T *>(p); });
-    saveEntrypoint(o);
-    return *o;
+    unique_ptr<T> o = make_unique_on_memory<T>(m_Dag.m_memory, std::forward<Args>(args)...);
+    T *ptr = o.release();
+    m_Dag.m_Components.emplace_back(ptr, std::type_index(typeid(T)), o.get_deleter());
+    saveEntrypoint(ptr);
+    return *ptr;
   }
 
   template <typename T>
@@ -109,7 +123,7 @@ struct Blueprint {
     auto dag = static_cast<DagFactory<typename Derived::EntryPoint> *>(_hidden_state);
     return dag->shared(fn);
   }
-  DAG_TEMPLATE_FACTORY()
+  DAG_TEMPLATE_HELPER()
 };
 
 template <typename T>
@@ -123,17 +137,11 @@ struct BootStrapper {
 
   unique_ptr<Dag<typename T::EntryPoint>> operator()(std::function<void(T *)> config) {
     std::pmr::polymorphic_allocator<MutableDag<typename T::EntryPoint>> alloc{m_memory};
-    MutableDag<typename T::EntryPoint> *raw_dag = alloc.allocate(1);
-    alloc.construct(raw_dag, m_memory);
-
-    unique_ptr<MutableDag<typename T::EntryPoint>> dag{
-        raw_dag, [alloc](void *p) mutable {
-          auto obj = static_cast<MutableDag<typename T::EntryPoint> *>(p);
-          alloc.destroy(obj);
-          alloc.deallocate(obj, 1);
-        }};
+    unique_ptr<MutableDag<typename T::EntryPoint>> dag =
+        make_unique_on_memory<MutableDag<typename T::EntryPoint>>(m_memory, m_memory);
 
     std::pmr::unordered_map<std::type_index, void *> shared(m_temporary_memory);
+
     DagFactory<typename T::EntryPoint> factory{*dag, shared};
     T bluepoint;
     bluepoint._hidden_state = &factory;
@@ -152,19 +160,5 @@ BootStrapper<T> bootstrap(
     std::pmr::memory_resource *temporary_memory = std::pmr::get_default_resource()) {
   return BootStrapper<T>(memory, temporary_memory);
 }
-
-/*
-template <typename T>
-unique_ptr<Dag<typename T::EntryPoint>> bootstrap(std::function<void(T *)> config) {
-  unique_ptr<MutableDag<typename T::EntryPoint>> dag{
-      new MutableDag<typename T::EntryPoint>(),
-      [](void *p) { delete static_cast<MutableDag<typename T::EntryPoint> *>(p); }};
-  std::unordered_map<std::type_index, void *> shared;
-  DagFactory<typename T::EntryPoint> factory{*dag, shared};
-  T bluepoint;
-  bluepoint._hidden_state = &factory;
-  config(&bluepoint);
-  return dag;
-}*/
 
 }  // namespace dag

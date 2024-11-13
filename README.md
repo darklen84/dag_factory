@@ -3,8 +3,8 @@ Minimal dependency injection framework for C++
 
 ## TODO
 
-- support custom allocator
-- allow custom constructor in Blueprint class.
-- use custom unique_ptr for the return value of bootstrap.
-- DAG_SHARED() needs to support types with comma.
+- Add support for custom allocators.
+- Enable custom constructors in the `Blueprint` class.
+- Utilize custom `unique_ptr` for the return value of `bootstrap`.
+- Enhance `DAG_SHARED()` to support types containing commas.
 
