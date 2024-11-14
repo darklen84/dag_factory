@@ -1,6 +1,8 @@
 #include <functional>
 #include <memory>
 #include <memory_resource>
+#include <stdexcept>
+#include <type_traits>
 #include <typeindex>
 #include <unordered_map>
 #include <utility>
@@ -13,12 +15,12 @@ using deleter = std::function<void(void *)>;
 template <typename T>
 using unique_ptr = std::unique_ptr<T, deleter>;
 
-template <typename EntryPoint>
-struct DagFactory;
+template <typename Selection>
+struct DagContext;
 
-template <typename EntryPoint>
+template <typename Selection>
 struct Dag {
-  virtual const std::pmr::vector<EntryPoint *> &entryPoints() const = 0;
+  virtual const std::pmr::vector<Selection *> &selections() const = 0;
   virtual ~Dag() = default;
 
  protected:
@@ -41,8 +43,8 @@ struct Dag {
     return this->template do_make_node<NodeType>(std::forward<Args>(args)...); \
   }
 
-template <typename EntryPoint>
-struct MutableDag : public Dag<EntryPoint> {
+template <typename Selection>
+struct MutableDag : public Dag<Selection> {
   explicit MutableDag(std::pmr::memory_resource *memory)
       : m_Components(memory), m_entryPoints(memory), m_memory(memory) {}
   ~MutableDag() override {
@@ -52,15 +54,13 @@ struct MutableDag : public Dag<EntryPoint> {
       fn(std::get<0>(*itr));
     }
   }
-
- protected:
-  const std::pmr::vector<EntryPoint *> &entryPoints() const override { return m_entryPoints; }
+  const std::pmr::vector<Selection *> &selections() const override { return m_entryPoints; }
 
  private:
   std::pmr::vector<std::tuple<void *, std::type_index, deleter>> m_Components;
-  std::pmr::vector<EntryPoint *> m_entryPoints;
+  std::pmr::vector<Selection *> m_entryPoints;
   std::pmr::memory_resource *m_memory;
-  friend class DagFactory<EntryPoint>;
+  friend class DagContext<Selection>;
 };
 
 template <typename T, typename... Args>
@@ -75,8 +75,8 @@ unique_ptr<T> make_unique_on_memory(std::pmr::memory_resource *memory, Args &&..
   });
 }
 
-template <typename EntryPoint>
-struct DagFactory {
+template <typename Selection>
+struct DagContext {
   template <typename T, typename... Args>
   T &make_node(Args &&...args) {
     unique_ptr<T> o = make_unique_on_memory<T>(m_Dag.m_memory, std::forward<Args>(args)...);
@@ -97,77 +97,79 @@ struct DagFactory {
 
   using shared_map = std::pmr::unordered_map<std::type_index, void *>;
 
-  explicit DagFactory(MutableDag<EntryPoint> &dag, shared_map &shared)
+  explicit DagContext(MutableDag<Selection> &dag, shared_map &shared)
       : m_Dag(dag), m_shared(shared) {}
 
  private:
-  void saveEntrypoint(EntryPoint *o) { m_Dag.m_entryPoints.push_back(o); }
+  void saveEntrypoint(Selection *o) { m_Dag.m_entryPoints.push_back(o); }
   void saveEntrypoint(...) {}
 
  private:
-  MutableDag<EntryPoint> &m_Dag;
+  MutableDag<Selection> &m_Dag;
   shared_map &m_shared;
 };
-struct EntrypointBase {
-  virtual ~EntrypointBase() = default;
+struct SelectionBase {
+  virtual ~SelectionBase() = default;
 };
 
 template <typename Derived>
 struct Blueprint {
   void *_hidden_state = nullptr;
-  using EntryPoint = EntrypointBase;
+  using TypeToSelect = SelectionBase;
   template <typename NodeType, typename... Args>
   NodeType &do_make_node(Args &&...args) {
-    auto dag = static_cast<DagFactory<typename Derived::EntryPoint> *>(_hidden_state);
+    auto dag = static_cast<DagContext<typename Derived::TypeToSelect> *>(_hidden_state);
     return dag->template make_node<NodeType>(std::forward<Args>(args)...);
   }
   template <typename T>
   T &do_shared(std::function<T &()> fn) {
-    auto dag = static_cast<DagFactory<typename Derived::EntryPoint> *>(_hidden_state);
+    auto dag = static_cast<DagContext<typename Derived::TypeToSelect> *>(_hidden_state);
     return dag->shared(fn);
   }
   DAG_TEMPLATE_HELPER()
 };
 
 template <typename T>
-struct BootStrapper {
-  explicit BootStrapper(
+struct DagFactory {
+  explicit DagFactory(
       std::pmr::memory_resource *memory = std::pmr::get_default_resource(),
       std::pmr::memory_resource *temporary_memory = std::pmr::get_default_resource()) {
     m_memory = memory;
     m_temporary_memory = temporary_memory;
   }
-  BootStrapper(const BootStrapper<T> &) = default;
-  template <typename... Args>
-  unique_ptr<Dag<typename T::EntryPoint>> loadDag(std::function<void(T *)> config, Args &&...args) {
-    std::pmr::polymorphic_allocator<MutableDag<typename T::EntryPoint>> alloc{m_memory};
-    unique_ptr<MutableDag<typename T::EntryPoint>> dag =
-        make_unique_on_memory<MutableDag<typename T::EntryPoint>>(m_memory, m_memory);
+  DagFactory(const DagFactory<T> &) = default;
 
-    std::pmr::unordered_map<std::type_index, void *> shared(m_temporary_memory);
-
-    DagFactory<typename T::EntryPoint> factory{*dag, shared};
-    T blueprint{std::forward<Args>(args)...};
-    blueprint._hidden_state = &factory;
-    config(&blueprint);
-    return dag;
+  template <typename F, typename R = typename std::invoke_result<F, T *>::type>
+  auto test(F fn) -> R {
+    static_assert(std::is_reference_v<R>, "initializer must return a refernce of a dag node.");
+    return fn((T *)nullptr);
   }
 
-  template <typename R, typename... Args>
-  unique_ptr<R> load(std::function<R &(T *)> config, Args &&...args) {
-    std::pmr::polymorphic_allocator<MutableDag<typename T::EntryPoint>> alloc{m_memory};
-    unique_ptr<MutableDag<typename T::EntryPoint>> dag =
-        make_unique_on_memory<MutableDag<typename T::EntryPoint>>(m_memory, m_memory);
+  template <typename F, typename RR = typename std::invoke_result<F, T *>::type,
+            typename R = typename std::remove_reference<RR>::type, typename... Args>
+  std::pair<unique_ptr<R>, const std::pmr::vector<typename T::TypeToSelect *> *> create(
+      F initializer, Args &&...args) {
+    static_assert(std::is_reference_v<RR>, "initializer must return a refernce of a dag node.");
+    std::pmr::polymorphic_allocator<MutableDag<typename T::TypeToSelect>> alloc{m_memory};
+
+    unique_ptr<MutableDag<typename T::TypeToSelect>> dag =
+        make_unique_on_memory<MutableDag<typename T::TypeToSelect>>(m_memory, m_memory);
 
     std::pmr::unordered_map<std::type_index, void *> shared(m_temporary_memory);
 
-    DagFactory<typename T::EntryPoint> factory{*dag, shared};
+    DagContext<typename T::TypeToSelect> factory{*dag, shared};
     T bluepoint{std::forward<Args>(args)...};
     bluepoint._hidden_state = &factory;
-    R &result = config(&bluepoint);
-    MutableDag<typename T::EntryPoint> *dag_address = dag.release();
+    R &result = initializer(&bluepoint);
+
+    MutableDag<typename T::TypeToSelect> *dag_address = dag.release();
     auto dag_deleter = dag.get_deleter();
-    return unique_ptr<R>(&result, [dag_address, dag_deleter](void *) { dag_deleter(dag_address); });
+    return {unique_ptr<R>(&result,
+                          [dag_address, alloc](void *) mutable {
+                            alloc.destroy(dag_address);
+                            alloc.deallocate(dag_address, 1);
+                          }),
+            &dag_address->selections()};
   }
 
  private:
