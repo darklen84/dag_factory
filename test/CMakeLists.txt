@@ -14,3 +14,6 @@ target_link_libraries(dag_factory_tests PRIVATE
     Catch2::Catch2WithMain
     dag_factory
 )
+
+
+add_test(NAME dag_factory_tests COMMAND dag_factory_tests)

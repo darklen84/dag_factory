@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+enable_testing()
+
 add_library(dag_factory INTERFACE)
 
 target_include_directories(dag_factory INTERFACE include)
