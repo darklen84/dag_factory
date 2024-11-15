@@ -23,7 +23,7 @@ template <typename T>
 struct System : public Blueprint<T> {
   DAG_TEMPLATE_HELPER()
   A &a() { return make_node<A>(); }
-  virtual B &b() DAG_SHARED(B) { return make_node<B>(a()); }
+  virtual B &b() DAG_SHARED2(B) { return make_node<B>(a()); }
   C &c() { return make_node<C>(a(), b()); }
   D &d() { return make_node<D>(b(), c()); }
   D &config() { return d(); }
@@ -133,7 +133,7 @@ struct CRTPBase : public Blueprint<B> {
   Derived *derived = static_cast<Derived *>(this);
 
   A &a() { return make_node<A>(); }
-  B &b() DAG_SHARED(B) { return make_node<B>(derived->a()); }
+  B &b() DAG_SHARED2(B) { return make_node<B>(derived->a()); }
   C &c() { return make_node<C>(derived->a(), derived->b()); }
   D &d() { return make_node<D>(derived->b(), derived->c()); }
 };
@@ -171,5 +171,10 @@ auto make_template_node(Args... args) -> decltype(T(std::forward<Args &>(args)..
 struct ppp : Blueprint<> {
   auto &a() { return *(new std::string("aaa")); }
   auto &test() { return make_template_node<Test>(a()); }
+};
+
+template <typename T>
+class tttt : public Blueprint<> {
+  auto a() DAG_SHARED2(auto) { return make_node<std::string>("1234"); }
 };
 //------------------------------------------------------------------------------

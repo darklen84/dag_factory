@@ -38,6 +38,20 @@ struct Dag {
 
 #define DAG_SHARED(...) _DAG_SHARED(__LINE__, __VA_ARGS__)
 
+#define _DAG_SHARED2(line, ...)                                         \
+  {                                                                     \
+    if (nullptr == DAG_COMBINE(singleton, line)) {                      \
+      DAG_COMBINE(singleton, line) = &DAG_COMBINE(factory, line)();     \
+    }                                                                   \
+    using ResultRef = decltype(DAG_COMBINE(factory, line)());           \
+    using ResultType = typename std::remove_reference<ResultRef>::type; \
+    return *static_cast<ResultType *>(DAG_COMBINE(singleton, line));    \
+  }                                                                     \
+  void *DAG_COMBINE(singleton, line) = nullptr;                         \
+  __VA_ARGS__ &DAG_COMBINE(factory, line)()
+
+#define DAG_SHARED2(...) _DAG_SHARED2(__LINE__, __VA_ARGS__)
+
 #define DAG_TEMPLATE_HELPER()                                                  \
   template <typename NodeType, typename... Args>                               \
   NodeType &make_node(Args &&...args) {                                        \
