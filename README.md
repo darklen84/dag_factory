@@ -10,7 +10,7 @@ Dag_factory uses a plain C++ class to model the dependency information in the ob
 ```c++
 #include "dag/dag_factory.h"
 
-struct SystemBlueprint : public dag::Blueprint<SystemBlueprint> {
+struct SystemBlueprint : public dag::Blueprint<> {
     A& a() { return make_node<A>(b(), b()); }
     B& b() { return make_node<B>(c()); }
     C& c() DAG_SHARED(C) { return make_node<C>(); }

@@ -20,9 +20,8 @@ struct D : public Base {
 };
 
 template <typename T>
-struct System : public Blueprint<System<T>> {
+struct System : public Blueprint<T> {
   DAG_TEMPLATE_HELPER()
-  using TypeToSelect = T;
   A &a() { return make_node<A>(); }
   virtual B &b() DAG_SHARED(B) { return make_node<B>(a()); }
   C &c() { return make_node<C>(a(), b()); }
@@ -59,7 +58,7 @@ TEST_CASE("factory can be overriden using runtime polymorphism", "Blueprint") {
 }
 
 TEST_CASE("TypeToCollect in Blueprint is optional", "Blueprint") {
-  struct System : public Blueprint<System> {
+  struct System : public Blueprint<> {
     A &a() { return make_node<A>(); }
     B &b() { return make_node<B>(a()); }
     B &config() { return b(); }
@@ -77,9 +76,7 @@ TEST_CASE("BootStrapper::load() can return node directly", "Blueprint") {
 }
 
 TEST_CASE("DAG_SHARE() accepts types with comma", "Blueprint") {
-  struct System : public Blueprint<System> {
-    using TypeToSelect = std::map<int, int>;
-
+  struct System : public Blueprint<std::map<int, int>> {
     std::map<int, int> &a() DAG_SHARED(std::map<int, int>) {
       return make_node<std::map<int, int>>();
     }
@@ -91,12 +88,10 @@ TEST_CASE("DAG_SHARE() accepts types with comma", "Blueprint") {
 }
 
 TEST_CASE("Blueprints with custom constructor are supported", "Blueprint") {
-  struct System : public Blueprint<System> {
+  struct System : public Blueprint<std::map<int, int>> {
     explicit System(int k, int v) : key(k), value(v) {}
     int key;
     int value;
-    using TypeToSelect = std::map<int, int>;
-
     std::map<int, int> &a() DAG_SHARED(std::map<int, int>) {
       auto &map = make_node<std::map<int, int>>();
       map[key] = value;
@@ -111,9 +106,7 @@ TEST_CASE("Blueprints with custom constructor are supported", "Blueprint") {
 }
 
 TEST_CASE("factory use and propagate the memory resource", "Resource") {
-  struct System : public Blueprint<System> {
-    using TypeToSelect = std::pmr::vector<std::pmr::string>;
-
+  struct System : public Blueprint<std::pmr::vector<std::pmr::string>> {
     TypeToSelect &a() {
       TypeToSelect &v = make_node<TypeToSelect>();
       v.push_back("a");
@@ -135,9 +128,8 @@ TEST_CASE("factory use and propagate the memory resource", "Resource") {
 //------------------------------------------------------------------------------
 namespace {
 template <typename Derived>
-struct CRTPBase : public Blueprint<Derived> {
+struct CRTPBase : public Blueprint<B> {
   DAG_TEMPLATE_HELPER()
-  using TypeToSelect = B;
   Derived *derived = static_cast<Derived *>(this);
 
   A &a() { return make_node<A>(); }

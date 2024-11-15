@@ -96,17 +96,14 @@ struct DagContext {
  private:
   MutableDag<Selection> &m_Dag;
 };
-struct SelectionBase {
-  virtual ~SelectionBase() = default;
-};
-
-template <typename Derived>
+struct Nothing {};
+template <typename T = Nothing>
 struct Blueprint {
-  void *_hidden_state = nullptr;
-  using TypeToSelect = SelectionBase;
+  void *_hidden_context = nullptr;
+  using TypeToSelect = T;
   template <typename NodeType, typename... Args>
   NodeType &do_make_node(Args &&...args) {
-    auto dag = static_cast<DagContext<typename Derived::TypeToSelect> *>(_hidden_state);
+    auto dag = static_cast<DagContext<TypeToSelect> *>(_hidden_context);
     return dag->template make_node<NodeType>(std::forward<Args>(args)...);
   }
   DAG_TEMPLATE_HELPER()
@@ -137,7 +134,7 @@ struct DagFactory {
 
     DagContext<typename T::TypeToSelect> factory{*dag};
     T bluepoint{std::forward<Args>(args)...};
-    bluepoint._hidden_state = &factory;
+    bluepoint._hidden_context = &factory;
     R &result = initializer(&bluepoint);
 
     MutableDag<typename T::TypeToSelect> *dag_address = dag.release();
