@@ -156,4 +156,20 @@ TEST_CASE("factory can be overriden using curiously recurring template", "Bluepr
   REQUIRE(selections->size() == 2);
 }
 
+template <typename T>
+struct Test {
+  explicit Test(T &t) {}
+};
+
+#define MAKE_TEMPLATE_NODE(NodeType, ...) *(new NodeType(__VA_ARGS__))
+
+template <template <typename...> typename T, typename... Args>
+auto make_template_node(Args... args) -> decltype(T(std::forward<Args &>(args)...)) & {
+  return *(new T(std::forward<Args &>(args)...));
+}
+
+struct ppp : Blueprint<> {
+  auto &a() { return *(new std::string("aaa")); }
+  auto &test() { return make_template_node<Test>(a()); }
+};
 //------------------------------------------------------------------------------
