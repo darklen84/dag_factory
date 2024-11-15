@@ -47,7 +47,7 @@ struct Dag {
 template <typename Selection>
 struct MutableDag : public Dag<Selection> {
   explicit MutableDag(std::pmr::memory_resource *memory)
-      : m_Components(memory), m_entryPoints(memory), m_memory(memory) {}
+      : m_Components(memory), m_entryPoints(memory) {}
   ~MutableDag() override {
     // components needs to be deleted in the reverse order of their creation.
     for (auto itr = m_Components.rbegin(); itr != m_Components.rend(); ++itr) {
@@ -60,7 +60,6 @@ struct MutableDag : public Dag<Selection> {
  private:
   std::pmr::vector<std::tuple<void *, std::type_index, deleter>> m_Components;
   std::pmr::vector<Selection *> m_entryPoints;
-  std::pmr::memory_resource *m_memory;
   friend class DagContext<Selection>;
 };
 
@@ -80,7 +79,8 @@ template <typename Selection>
 struct DagContext {
   template <typename T, typename... Args>
   T &make_node(Args &&...args) {
-    unique_ptr<T> o = make_unique_on_memory<T>(m_Dag.m_memory, std::forward<Args>(args)...);
+    std::pmr::memory_resource *memory = m_Dag.m_entryPoints.get_allocator().resource();
+    unique_ptr<T> o = make_unique_on_memory<T>(memory, std::forward<Args>(args)...);
     T *ptr = o.release();
     m_Dag.m_Components.emplace_back(ptr, std::type_index(typeid(T)), o.get_deleter());
     saveEntrypoint(ptr);
@@ -114,11 +114,8 @@ struct Blueprint {
 
 template <typename T>
 struct DagFactory {
-  explicit DagFactory(
-      std::pmr::memory_resource *memory = std::pmr::get_default_resource(),
-      std::pmr::memory_resource *temporary_memory = std::pmr::get_default_resource()) {
+  explicit DagFactory(std::pmr::memory_resource *memory = std::pmr::get_default_resource()) {
     m_memory = memory;
-    m_temporary_memory = temporary_memory;
   }
   DagFactory(const DagFactory<T> &) = default;
 
@@ -155,7 +152,6 @@ struct DagFactory {
 
  private:
   std::pmr::memory_resource *m_memory;
-  std::pmr::memory_resource *m_temporary_memory;
 };
 
 }  // namespace dag
