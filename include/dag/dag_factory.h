@@ -26,7 +26,7 @@ struct Dag {
 };
 
 #define DAG_COMBINE(n, id) n##id
-#define _DAG_SHARED(line, ...)                                      \
+/*#define _DAG_SHARED(line, ...)                                      \
   {                                                                 \
     if (nullptr == DAG_COMBINE(singleton, line)) {                  \
       DAG_COMBINE(singleton, line) = &DAG_COMBINE(factory, line)(); \
@@ -37,8 +37,8 @@ struct Dag {
   __VA_ARGS__ &DAG_COMBINE(factory, line)()
 
 #define DAG_SHARED(...) _DAG_SHARED(__LINE__, __VA_ARGS__)
-
-#define _DAG_SHARED2(line, ...)                                         \
+*/
+#define _DAG_SHARED(line, ...)                                          \
   {                                                                     \
     if (nullptr == DAG_COMBINE(singleton, line)) {                      \
       DAG_COMBINE(singleton, line) = &DAG_COMBINE(factory, line)();     \
@@ -50,7 +50,7 @@ struct Dag {
   void *DAG_COMBINE(singleton, line) = nullptr;                         \
   __VA_ARGS__ &DAG_COMBINE(factory, line)()
 
-#define DAG_SHARED2(...) _DAG_SHARED2(__LINE__, __VA_ARGS__)
+#define DAG_SHARED(...) _DAG_SHARED(__LINE__, __VA_ARGS__)
 
 #define DAG_TEMPLATE_HELPER()                                                  \
   template <typename NodeType, typename... Args>                               \

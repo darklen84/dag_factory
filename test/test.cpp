@@ -23,7 +23,7 @@ template <typename T>
 struct System : public Blueprint<T> {
   DAG_TEMPLATE_HELPER()
   A &a() { return make_node<A>(); }
-  virtual B &b() DAG_SHARED2(B) { return make_node<B>(a()); }
+  virtual B &b() DAG_SHARED(B) { return make_node<B>(a()); }
   C &c() { return make_node<C>(a(), b()); }
   D &d() { return make_node<D>(b(), c()); }
   D &config() { return d(); }
@@ -133,7 +133,7 @@ struct CRTPBase : public Blueprint<B> {
   Derived *derived = static_cast<Derived *>(this);
 
   A &a() { return make_node<A>(); }
-  B &b() DAG_SHARED2(B) { return make_node<B>(derived->a()); }
+  B &b() DAG_SHARED(B) { return make_node<B>(derived->a()); }
   C &c() { return make_node<C>(derived->a(), derived->b()); }
   D &d() { return make_node<D>(derived->b(), derived->c()); }
 };
@@ -148,6 +148,7 @@ struct CRTPSystem : public CRTPBase<Derived> {
 struct CRTPSystem2 : public CRTPSystem<CRTPSystem2> {
   D &config() { return d(); }
 };
+
 }  // namespace
 
 TEST_CASE("factory can be overriden using curiously recurring template", "Blueprint") {
@@ -156,12 +157,30 @@ TEST_CASE("factory can be overriden using curiously recurring template", "Bluepr
   REQUIRE(selections->size() == 2);
 }
 
+//------------------------------------------------------------------------------
+namespace {
+template <typename T>
+struct TemplateSystem : public Blueprint<T> {
+  DAG_TEMPLATE_HELPER()
+  auto &a() DAG_SHARED(auto) { return make_node<A>(); }
+  B &b() { return make_node<B>(a()); }
+  C &c() { return make_node<C>(a(), b()); }
+  D &d() { return make_node<D>(b(), c()); }
+  D &config() { return d(); }
+};
+}  // namespace
+
+TEST_CASE("DAG_SHARED() can be used with auto", "Blueprint") {
+  auto [entry, selections] =
+      DagFactory<TemplateSystem<A>>().create(std::mem_fn(&TemplateSystem<A>::config));
+
+  REQUIRE(selections->size() == 1);
+}
+
 template <typename T>
 struct Test {
   explicit Test(T &t) {}
 };
-
-#define MAKE_TEMPLATE_NODE(NodeType, ...) *(new NodeType(__VA_ARGS__))
 
 template <template <typename...> typename T, typename... Args>
 auto make_template_node(Args... args) -> decltype(T(std::forward<Args &>(args)...)) & {
@@ -173,8 +192,4 @@ struct ppp : Blueprint<> {
   auto &test() { return make_template_node<Test>(a()); }
 };
 
-template <typename T>
-class tttt : public Blueprint<> {
-  auto a() DAG_SHARED2(auto) { return make_node<std::string>("1234"); }
-};
 //------------------------------------------------------------------------------
