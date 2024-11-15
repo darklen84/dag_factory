@@ -1,10 +1,8 @@
 #include <functional>
 #include <memory>
 #include <memory_resource>
-#include <stdexcept>
 #include <type_traits>
 #include <typeindex>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 #pragma one
@@ -28,11 +26,14 @@ struct Dag {
 };
 
 #define DAG_COMBINE(n, id) n##id
-#define _DAG_SHARED(line, ...)                                               \
-  {                                                                          \
-    return this->template do_shared<__VA_ARGS__>(                            \
-        [this]() -> __VA_ARGS__ & { return DAG_COMBINE(factory, line)(); }); \
-  }                                                                          \
+#define _DAG_SHARED(line, ...)                                      \
+  {                                                                 \
+    if (nullptr == DAG_COMBINE(singleton, line)) {                  \
+      DAG_COMBINE(singleton, line) = &DAG_COMBINE(factory, line)(); \
+    }                                                               \
+    return *DAG_COMBINE(singleton, line);                           \
+  }                                                                 \
+  __VA_ARGS__ *DAG_COMBINE(singleton, line) = nullptr;              \
   __VA_ARGS__ &DAG_COMBINE(factory, line)()
 
 #define DAG_SHARED(...) _DAG_SHARED(__LINE__, __VA_ARGS__)
@@ -86,19 +87,7 @@ struct DagContext {
     return *ptr;
   }
 
-  template <typename T>
-  T &shared(std::function<T &()> fn) {
-    void *&o = m_shared[std::type_index(typeid(T))];
-    if (nullptr == o) {
-      o = &fn();
-    }
-    return *static_cast<T *>(o);
-  }
-
-  using shared_map = std::pmr::unordered_map<std::type_index, void *>;
-
-  explicit DagContext(MutableDag<Selection> &dag, shared_map &shared)
-      : m_Dag(dag), m_shared(shared) {}
+  explicit DagContext(MutableDag<Selection> &dag) : m_Dag(dag) {}
 
  private:
   void saveEntrypoint(Selection *o) { m_Dag.m_entryPoints.push_back(o); }
@@ -106,7 +95,6 @@ struct DagContext {
 
  private:
   MutableDag<Selection> &m_Dag;
-  shared_map &m_shared;
 };
 struct SelectionBase {
   virtual ~SelectionBase() = default;
@@ -120,11 +108,6 @@ struct Blueprint {
   NodeType &do_make_node(Args &&...args) {
     auto dag = static_cast<DagContext<typename Derived::TypeToSelect> *>(_hidden_state);
     return dag->template make_node<NodeType>(std::forward<Args>(args)...);
-  }
-  template <typename T>
-  T &do_shared(std::function<T &()> fn) {
-    auto dag = static_cast<DagContext<typename Derived::TypeToSelect> *>(_hidden_state);
-    return dag->shared(fn);
   }
   DAG_TEMPLATE_HELPER()
 };
@@ -155,9 +138,7 @@ struct DagFactory {
     unique_ptr<MutableDag<typename T::TypeToSelect>> dag =
         make_unique_on_memory<MutableDag<typename T::TypeToSelect>>(m_memory, m_memory);
 
-    std::pmr::unordered_map<std::type_index, void *> shared(m_temporary_memory);
-
-    DagContext<typename T::TypeToSelect> factory{*dag, shared};
+    DagContext<typename T::TypeToSelect> factory{*dag};
     T bluepoint{std::forward<Args>(args)...};
     bluepoint._hidden_state = &factory;
     R &result = initializer(&bluepoint);
