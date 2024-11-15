@@ -7,7 +7,10 @@ using namespace dag;
 namespace {
 struct Base {};
 
-struct A : public Base {};
+struct A : public Base {
+  A() = default;
+  A(const A &a) = delete;
+};
 struct B : public Base {
   explicit B(A &a) {}
 };
@@ -173,6 +176,32 @@ struct TemplateSystem : public Blueprint<T> {
 TEST_CASE("DAG_SHARED() can be used with auto", "Blueprint") {
   auto [entry, selections] =
       DagFactory<TemplateSystem<A>>().create(std::mem_fn(&TemplateSystem<A>::config));
+
+  REQUIRE(selections->size() == 1);
+}
+//------------------------------------------------------------------------------
+namespace {
+template <typename A, typename B>
+struct Pair {
+  explicit Pair(A &a, B &b) : m_a(a), m_b(b) {}
+  A &m_a;
+  B &m_b;
+};
+template <typename T>
+struct AutoSystem : public Blueprint<T> {
+  DAG_TEMPLATE_HELPER()
+  int &a() { return make_node<int>(100); }
+  std::string &b() DAG_SHARED(std::string) { return make_node<std::string>("a"); }
+  auto &c() { return make_node_t<Pair>(a(), b()); }
+  auto &d() { return make_node_t<Pair>(b(), c()); }
+  auto &config() { return d(); }
+};
+
+}  // namespace
+
+TEST_CASE("make_node_t() constructs template", "Blueprint") {
+  auto [entry, selections] =
+      DagFactory<AutoSystem<int>>().create(std::mem_fn(&AutoSystem<int>::config));
 
   REQUIRE(selections->size() == 1);
 }

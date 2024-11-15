@@ -26,18 +26,6 @@ struct Dag {
 };
 
 #define DAG_COMBINE(n, id) n##id
-/*#define _DAG_SHARED(line, ...)                                      \
-  {                                                                 \
-    if (nullptr == DAG_COMBINE(singleton, line)) {                  \
-      DAG_COMBINE(singleton, line) = &DAG_COMBINE(factory, line)(); \
-    }                                                               \
-    return *DAG_COMBINE(singleton, line);                           \
-  }                                                                 \
-  __VA_ARGS__ *DAG_COMBINE(singleton, line) = nullptr;              \
-  __VA_ARGS__ &DAG_COMBINE(factory, line)()
-
-#define DAG_SHARED(...) _DAG_SHARED(__LINE__, __VA_ARGS__)
-*/
 #define _DAG_SHARED(line, ...)                                          \
   {                                                                     \
     if (nullptr == DAG_COMBINE(singleton, line)) {                      \
@@ -52,10 +40,14 @@ struct Dag {
 
 #define DAG_SHARED(...) _DAG_SHARED(__LINE__, __VA_ARGS__)
 
-#define DAG_TEMPLATE_HELPER()                                                  \
-  template <typename NodeType, typename... Args>                               \
-  NodeType &make_node(Args &&...args) {                                        \
-    return this->template do_make_node<NodeType>(std::forward<Args>(args)...); \
+#define DAG_TEMPLATE_HELPER()                                                        \
+  template <typename NodeType, typename... Args>                                     \
+  NodeType &make_node(Args &&...args) {                                              \
+    return this->template do_make_node<NodeType>(std::forward<Args>(args)...);       \
+  }                                                                                  \
+  template <template <typename...> typename NodeTemplate, typename... Args>          \
+  auto &make_node_t(Args &&...args) {                                                \
+    return this->template do_make_node_t<NodeTemplate>(std::forward<Args>(args)...); \
   }
 
 template <typename Selection>
@@ -71,10 +63,8 @@ struct MutableDag : public Dag<Selection> {
   }
   const std::pmr::vector<Selection *> &selections() const override { return m_entryPoints; }
 
- private:
   std::pmr::vector<std::tuple<void *, std::type_index, deleter>> m_Components;
   std::pmr::vector<Selection *> m_entryPoints;
-  friend class DagContext<Selection>;
 };
 
 template <typename T, typename... Args>
@@ -91,23 +81,9 @@ unique_ptr<T> make_unique_on_memory(std::pmr::memory_resource *memory, Args &&..
 
 template <typename Selection>
 struct DagContext {
-  template <typename T, typename... Args>
-  T &make_node(Args &&...args) {
-    std::pmr::memory_resource *memory = m_Dag.m_entryPoints.get_allocator().resource();
-    unique_ptr<T> o = make_unique_on_memory<T>(memory, std::forward<Args>(args)...);
-    T *ptr = o.release();
-    m_Dag.m_Components.emplace_back(ptr, std::type_index(typeid(T)), o.get_deleter());
-    saveEntrypoint(ptr);
-    return *ptr;
-  }
-
   explicit DagContext(MutableDag<Selection> &dag) : m_Dag(dag) {}
-
- private:
   void saveEntrypoint(Selection *o) { m_Dag.m_entryPoints.push_back(o); }
   void saveEntrypoint(...) {}
-
- private:
   MutableDag<Selection> &m_Dag;
 };
 struct Nothing {};
@@ -117,9 +93,22 @@ struct Blueprint {
   using TypeToSelect = T;
   template <typename NodeType, typename... Args>
   NodeType &do_make_node(Args &&...args) {
-    auto dag = static_cast<DagContext<TypeToSelect> *>(_hidden_context);
-    return dag->template make_node<NodeType>(std::forward<Args>(args)...);
+    auto context = static_cast<DagContext<TypeToSelect> *>(_hidden_context);
+    std::pmr::memory_resource *memory = context->m_Dag.m_entryPoints.get_allocator().resource();
+    unique_ptr<NodeType> o = make_unique_on_memory<NodeType>(memory, std::forward<Args>(args)...);
+    NodeType *ptr = o.release();
+    context->m_Dag.m_Components.emplace_back(ptr, std::type_index(typeid(NodeType)),
+                                             o.get_deleter());
+    context->saveEntrypoint(ptr);
+    return *ptr;
   }
+
+  template <template <typename...> typename NodeTemplate, typename... Args>
+  auto &do_make_node_t(Args &&...args) {
+    using NodeType = decltype(NodeTemplate(std::forward<Args &>(args)...));
+    return do_make_node<NodeType>(std::forward<Args>(args)...);
+  }
+
   DAG_TEMPLATE_HELPER()
 };
 
