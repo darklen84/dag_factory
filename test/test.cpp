@@ -68,29 +68,9 @@ TEST_CASE("factory can be overriden using runtime polymorphism", "Blueprint") {
 
 TEST_CASE("TypeToCollect in Blueprint is optional", "Blueprint") {
   auto factory = DagFactory<System>();
-  auto [entry, selections] = factory.create([](auto bp) -> auto & { return bp->d(); });
-  REQUIRE(selections->size() == 0);
+  auto entry = factory.create([](auto bp) -> auto & { return bp->d(); });
+  REQUIRE(entry != nullptr);
 }
-/*
-TEST_CASE("BootStrapper::load() can return node directly", "Blueprint") {
-  struct System2 : public System<B> {
-    B &b() override { return make_node<B>(a()); }
-  };
-  auto [r, selections] = DagFactory<System2>().create(std::mem_fn(&System2::b));
-}
-
-TEST_CASE("DAG_SHARE() accepts types with comma", "Blueprint") {
-  struct System : public Blueprint<std::map<int, int>> {
-    std::map<int, int> &a() DAG_SHARED(std::map<int, int>) {
-      return make_node<std::map<int, int>>();
-    }
-    std::map<int, int> &config() { return a(); }
-  };
-  auto [entry, selections] = DagFactory<System>().create(std::mem_fn(&System::config));
-
-  REQUIRE(selections->size() == 1);
-}
-*/
 
 namespace {
 template <typename T>
@@ -160,9 +140,7 @@ struct CRTPSystem : public CRTPBase<Derived, T> {
   B &b() { return make_node<B>(derived->a()); }
 };
 template <typename T>
-struct CRTPSystem2 : public CRTPSystem<CRTPSystem2<T>, T> {
-  // D &config() { return d(); }
-};
+struct CRTPSystem2 : public CRTPSystem<CRTPSystem2<T>, T> {};
 
 }  // namespace
 
