@@ -5,18 +5,18 @@ Dependency injection is a design pattern that decouples object creation from the
 
 Existing C++ dependency injection frameworks often come with limitations such as overly complex configuration, intrusiveness, and performance overhead. Dag_factory addresses these issues by providing a lightweight, header-only solution that leverages the latest C++ features to offer efficient and straightforward dependency injection.
 
-Dag_factory uses a plain C++ class to model the dependency information in the object graph, referred to as a blueprint. Below is an example of a simple blueprint:
+Dag_factory uses a plain C++ template to model the dependency information in the object graph, referred to as a blueprint. Below is an example of a simple blueprint:
 
 ```c++
 #include "dag/dag_factory.h"
-
-struct SystemBlueprint : public dag::Blueprint<> {
+template<typename T>
+struct SystemBlueprint : public dag::Blueprint<T> {
     A& a() { return make_node<A>(b(), b()); }
     B& b() { return make_node<B>(c()); }
-    C& c() DAG_SHARED(C) { return make_node<C>(); }
+    C& c() dag_shared { return make_node<C>(); }
 };
 ```
-The `make_node()` template method acted like `std::make_unique` excepted that the created object is owned by the graph and it returns a reference. The `DAG_SHARED()` macro ensures that only a single instance of `C` exists within the graph, meaning all other nodes will reference this same instance.
+The `make_node()` template method functions similarly to `std::make_unique`, but the created object is owned by the graph and it returns a reference. The `dag_shared` macro acts as a method modifier, indicating that only a single instance of `C` exists within the graph, meaning all other nodes will reference this same instance. If you prefer all macros to be uppercase, `DAG_SHARED` is available with the same functionality.
 
 
 This defines a graph of four objects as shown below:
@@ -29,11 +29,10 @@ The following code construct the object graph and returns one of its node `a`:
 ```c++
 auto factory = DagFactory<SystemBlueprint>();
 
-// The variable root has the type of dag::unique_ptr<A>
-auto [root, ignored] = factory.create(std::mem_fn(&SystemBlueprint::a));
+dag::unique_ptr<A> obj = factory.create(std::mem_fn(&SystemBlueprint::a));
 ```
 
-The entire graph is deleted after the `root` variable goes out of scope.
+The entire graph is deleted after the `obj` variable goes out of scope.
 
 Here are the declarations of all the classes involved:
 
