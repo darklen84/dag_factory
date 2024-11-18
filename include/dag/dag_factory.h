@@ -38,7 +38,10 @@ struct Dag {
   void *DAG_COMBINE(singleton, line) = nullptr;                         \
   __VA_ARGS__ &DAG_COMBINE(factory, line)()
 
-#define DAG_SHARED(...) _DAG_SHARED(__LINE__, __VA_ARGS__)
+#define DAG_SHARED_IMP(...) _DAG_SHARED(__LINE__, __VA_ARGS__)
+
+#define dag_shared DAG_SHARED_IMP(auto)
+#define DAG_SHARED dag_shared
 
 #define DAG_TEMPLATE_HELPER()                                                        \
   template <typename NodeType, typename... Args>                                     \
@@ -116,49 +119,6 @@ struct Blueprint {
 
   DAG_TEMPLATE_HELPER()
 };
-/*
-template <typename BP>
-struct DagFactory {
-  explicit DagFactory(std::pmr::memory_resource *memory = std::pmr::get_default_resource()) {
-    m_memory = memory;
-  }
-  DagFactory(const DagFactory<BP> &) = default;
-
-  template <typename F, typename R = typename std::invoke_result<F, BP *>::type>
-  auto test(F fn) -> R {
-    static_assert(std::is_reference_v<R>, "initializer must return a refernce of a dag node.");
-    return fn((BP *)nullptr);
-  }
-
-  template <typename F, typename RR = typename std::invoke_result<F, BP *>::type,
-            typename R = typename std::remove_reference<RR>::type, typename... Args>
-  std::pair<unique_ptr<R>, const std::pmr::vector<typename BP::TypeToSelect *> *> create(
-      F initializer, Args &&...args) {
-    static_assert(std::is_reference_v<RR>, "initializer must return a refernce of a dag node.");
-    std::pmr::polymorphic_allocator<MutableDag<typename BP::TypeToSelect>> alloc{m_memory};
-
-    unique_ptr<MutableDag<typename BP::TypeToSelect>> dag =
-        make_unique_on_memory<MutableDag<typename BP::TypeToSelect>>(m_memory, m_memory);
-
-    DagContext<BP> factory{*dag};
-    BP bluepoint{std::forward<Args>(args)...};
-    bluepoint._hidden_context = &factory;
-    R &result = initializer(&bluepoint);
-
-    MutableDag<typename BP::TypeToSelect> *dag_address = dag.release();
-    auto dag_deleter = dag.get_deleter();
-    return {unique_ptr<R>(&result,
-                          [dag_address, alloc](void *) mutable {
-                            alloc.destroy(dag_address);
-                            alloc.deallocate(dag_address, 1);
-                          }),
-            &dag_address->selections()};
-  }
-
- private:
-  std::pmr::memory_resource *m_memory;
-};
-*/
 
 template <template <typename> class BP_Template, typename TypeToSelect = Nothing>
 struct DagFactory {

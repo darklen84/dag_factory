@@ -26,7 +26,7 @@ template <typename T>
 struct System : public Blueprint<T> {
   DAG_TEMPLATE_HELPER()
   A &a() { return make_node<A>(); }
-  virtual B &b() DAG_SHARED(B) { return make_node<B>(a()); }
+  virtual B &b() dag_shared { return make_node<B>(a()); }
   C &c() { return make_node<C>(a(), b()); }
   D &d() { return make_node<D>(b(), c()); }
   // D &config() { return d(); }
@@ -99,7 +99,7 @@ struct System3 : public Blueprint<T> {
   explicit System3(int k, int v) : key(k), value(v) {}
   int key;
   int value;
-  std::map<int, int> &a() DAG_SHARED(std::map<int, int>) {
+  std::map<int, int> &a() dag_shared {
     auto &map = make_node<std::map<int, int>>();
     map[key] = value;
     return map;
@@ -148,7 +148,7 @@ struct CRTPBase : public Blueprint<T> {
   Derived *derived = static_cast<Derived *>(this);
 
   A &a() { return make_node<A>(); }
-  B &b() DAG_SHARED(B) { return make_node<B>(derived->a()); }
+  B &b() dag_shared { return make_node<B>(derived->a()); }
   C &c() { return make_node<C>(derived->a(), derived->b()); }
   D &d() { return make_node<D>(derived->b(), derived->c()); }
 };
@@ -180,7 +180,7 @@ namespace {
 template <typename T>
 struct System5 : public Blueprint<T> {
   DAG_TEMPLATE_HELPER()
-  auto &a() DAG_SHARED(auto) { return make_node<A>(); }
+  auto &a() dag_shared { return make_node<A>(); }
   B &b() { return make_node<B>(a()); }
   C &c() { return make_node<C>(a(), b()); }
   D &d() { return make_node<D>(b(), c()); }
@@ -207,7 +207,7 @@ template <typename T>
 struct System6 : public Blueprint<T> {
   DAG_TEMPLATE_HELPER()
   int &a() { return make_node<int>(100); }
-  std::string &b() DAG_SHARED(std::string) { return make_node<std::string>("a"); }
+  std::string &b() dag_shared { return make_node<std::string>("a"); }
   auto &c() { return make_node_t<Pair>(a(), b()); }
   auto &d() { return make_node_t<Pair>(b(), c()); }
 };
