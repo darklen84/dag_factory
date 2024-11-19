@@ -1,3 +1,6 @@
+!Build Status
+!License
+!Code Coverage
 # dag_factory
 Dag_factory is a single-header dependency injection framework for C++. It supports C++17 and onward, enabling the creation of a graph of interconnected objects in a single operation.
 
