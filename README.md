@@ -1,6 +1,5 @@
-!Build Status
-!License
-!Code Coverage
+[![CMake on multiple platforms](https://github.com/darklen84/dag_factory/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/darklen84/dag_factory/actions/workflows/cmake-multi-platform.yml)
+
 # dag_factory
 Dag_factory is a single-header dependency injection framework for C++. It supports C++17 and onward, enabling the creation of a graph of interconnected objects in a single operation.
 
