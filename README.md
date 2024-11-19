@@ -1,5 +1,6 @@
 [![CMake on multiple platforms](https://github.com/darklen84/dag_factory/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/darklen84/dag_factory/actions/workflows/cmake-multi-platform.yml)
 [![License](https://img.shields.io/badge/License-BSD_2--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=darklen84_dag_factory&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=darklen84_dag_factory)
 
 # dag_factory
 Dag_factory is a single-header dependency injection framework for C++. It supports C++17 and onward, enabling the creation of a graph of interconnected objects in a single operation.
