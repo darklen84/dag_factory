@@ -121,7 +121,7 @@ Here is the step-by-step explanation:
 * The `dag_shared` macro acts as a method modifier, indicating that only a single instance of `C` exists within the graph, meaning all other nodes will reference this same instance. If you prefer all macros to be uppercase, `DAG_SHARED` is available with the same functionality.
 * The entire graph is deleted after the `obj` variable goes out of scope. `dag_factory` efficiently manages the lifecycle of all nodes within the graph. This allows nodes to receive their dependencies as references, ensuring that the dependencies are properly constructed and destructed in accordance with the graph's lifecycle.
 
-Compared to the original **factory** approach, it eliminates the need to use smart pointers. `dag_factory` can construct the entire graph on a given `std::pmr::memory_resource`. When passed an arena-style memory resource like `std::pmr::memory_resource`, the whole graph can be constructed in a contiguous memory block, achieving the same level of performance and data locality as the **hard_wiring** approach.
+Compared to the original **factory** approach, it eliminates the need to use smart pointers. `dag_factory` can construct the entire graph on a given `std::pmr::memory_resource`. When passed an arena-style memory resource like `std::pmr::monotonic_buffer_resource`, the whole graph can be constructed in a contiguous memory block, achieving the same level of performance and data locality as the **hard_wiring** approach.
 
 Here is how:
 ```
