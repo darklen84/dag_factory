@@ -123,10 +123,9 @@ Here is the step-by-step explanation:
 
 Compared to the original **factory** approach, it eliminates the need to use smart pointers. `dag_factory` can construct the entire graph on a given `std::pmr::memory_resource`. When passed an arena-style memory resource like `std::pmr::monotonic_buffer_resource`, the whole graph can be constructed in a contiguous memory block, achieving the same level of performance and data locality as the **hard_wiring** approach.
 
-Here is how:
-```
+Here is exactly how:
 
-```
+```c++
 void test() {
     //pre-alocate 1K memory
     std::pmr::memory_resource memory(1024);
