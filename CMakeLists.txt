@@ -6,8 +6,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 enable_testing()
-
 add_library(dag_factory INTERFACE)
+
+add_library(dag_factory::Core ALIAS dag_factory)
+
 
 target_include_directories(dag_factory INTERFACE include)
 
@@ -18,5 +20,11 @@ install(TARGETS dag_factory
 
 install(DIRECTORY include/ DESTINATION include)
 
-add_subdirectory(test)
+option(DAG_ENABLE_TEST "Enable DAG tests" ON)
+
+if(DAG_ENABLE_TEST)
+    add_subdirectory(test)
+endif()
+
+
 
