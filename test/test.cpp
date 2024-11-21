@@ -106,6 +106,7 @@ struct System4 : public Blueprint<T> {
     return v;
   }
 };
+
 }  // namespace
 
 TEST_CASE("factory use and propagate the memory resource", "Resource") {
@@ -120,6 +121,36 @@ TEST_CASE("factory use and propagate the memory resource", "Resource") {
   REQUIRE((*selections)[0][0][0].get_allocator().resource() == memory);
 }
 
+namespace {
+template <typename T>
+struct SubGraph7 : public Blueprint<T> {
+  DAG_TEMPLATE_HELPER()
+  explicit SubGraph7(A &a) : m_a(a) {}
+  A &m_a;
+
+  A &a() { return m_a; }
+  B &b() dag_shared { return make_node<B>(a()); }
+};
+
+template <typename T>
+struct System7 : public Blueprint<T> {
+  DAG_TEMPLATE_HELPER();
+  C &c() { return make_node<C>(this->a(), this->b()); }
+  D &d() { return make_node<D>(this->b(), this->c()); }
+  A &a() { return make_node<A>(); }
+
+  B &b() {
+    return this->template do_make_graph<SubGraph7>([](auto bp) -> auto & { return bp->b(); }, a());
+  }
+};
+
+}  // namespace
+TEST_CASE("Blueprints can create sub-graphs", "Blueprint") {
+  auto factory = DagFactory<System7, A>();
+  auto [entry, selections] = factory.create([](auto bp) -> auto & { return bp->d(); });
+
+  REQUIRE(selections->size() == 3);  // one a created in the main graph and two in the subgraph
+}
 //------------------------------------------------------------------------------
 namespace {
 template <typename Derived, typename T>

@@ -43,14 +43,18 @@ struct Dag {
 #define dag_shared DAG_SHARED_IMP(auto)
 #define DAG_SHARED dag_shared
 
-#define DAG_TEMPLATE_HELPER()                                                        \
-  template <typename NodeType, typename... Args>                                     \
-  NodeType &make_node(Args &&...args) {                                              \
-    return this->template do_make_node<NodeType>(std::forward<Args>(args)...);       \
-  }                                                                                  \
-  template <template <typename...> typename NodeTemplate, typename... Args>          \
-  auto &make_node_t(Args &&...args) {                                                \
-    return this->template do_make_node_t<NodeTemplate>(std::forward<Args>(args)...); \
+#define DAG_TEMPLATE_HELPER()                                                         \
+  template <typename NodeType, typename... Args>                                      \
+  NodeType &make_node(Args &&...args) {                                               \
+    return this->template do_make_node<NodeType>(std::forward<Args>(args)...);        \
+  }                                                                                   \
+  template <template <typename...> typename NodeTemplate, typename... Args>           \
+  auto &make_node_t(Args &&...args) {                                                 \
+    return this->template do_make_node_t<NodeTemplate>(std::forward<Args>(args)...);  \
+  }                                                                                   \
+  template <template <typename...> typename BPTemplate, typename F, typename... Args> \
+  auto &make_graph(F fn, Args &&...args) {                                            \
+    return this->template do_make_graph<BPTemplate>(fn, std::forward<Args>(args)...); \
   }
 
 template <typename TypeToSelect>
@@ -95,30 +99,6 @@ struct DagContext {
   MutableDag<TypeToSelect> &m_Dag;
 };
 struct Nothing {};
-template <typename Extensions>
-struct Blueprint {
-  void *_hidden_context = nullptr;
-  using TypeToSelect = typename Extensions::TypeToSelect;
-  template <typename NodeType, typename... Args>
-  NodeType &do_make_node(Args &&...args) {
-    auto context = static_cast<DagContext<Extensions> *>(_hidden_context);
-    std::pmr::memory_resource *memory = context->m_Dag.m_entryPoints.get_allocator().resource();
-    unique_ptr<NodeType> o = make_unique_on_memory<NodeType>(memory, std::forward<Args>(args)...);
-    NodeType *ptr = o.release();
-    context->m_Dag.m_Components.emplace_back(ptr, std::type_index(typeid(NodeType)),
-                                             o.get_deleter());
-    context->saveEntrypoint(ptr);
-    return *ptr;
-  }
-
-  template <template <typename...> typename NodeTemplate, typename... Args>
-  auto &do_make_node_t(Args &&...args) {
-    using NodeType = decltype(NodeTemplate(std::forward<Args &>(args)...));
-    return do_make_node<NodeType>(std::forward<Args>(args)...);
-  }
-
-  DAG_TEMPLATE_HELPER()
-};
 
 struct FactoryUtils {
   template <typename BP, typename F, typename RR, typename R, typename... Args>
@@ -160,6 +140,41 @@ struct FactoryUtils {
     auto dag = createCommon<BP, F, RR, R>(memory, initializer, std::forward<Args>(args)...);
     return std::move(dag.first);
   }
+};
+
+template <typename Extensions>
+struct Blueprint {
+  void *_hidden_context = nullptr;
+  using TypeToSelect = typename Extensions::TypeToSelect;
+  template <typename NodeType, typename... Args>
+  NodeType &do_make_node(Args &&...args) {
+    auto context = static_cast<DagContext<Extensions> *>(_hidden_context);
+    std::pmr::memory_resource *memory = context->m_Dag.m_entryPoints.get_allocator().resource();
+    unique_ptr<NodeType> o = make_unique_on_memory<NodeType>(memory, std::forward<Args>(args)...);
+    NodeType *ptr = o.release();
+    context->m_Dag.m_Components.emplace_back(ptr, std::type_index(typeid(NodeType)),
+                                             o.get_deleter());
+    context->saveEntrypoint(ptr);
+    return *ptr;
+  }
+
+  template <template <typename...> typename NodeTemplate, typename... Args>
+  auto &do_make_node_t(Args &&...args) {
+    using NodeType = decltype(NodeTemplate(std::forward<Args &>(args)...));
+    return do_make_node<NodeType>(std::forward<Args>(args)...);
+  }
+
+  template <template <typename> typename BP_Template, typename BP = BP_Template<Extensions>,
+            typename F, typename RR = typename std::invoke_result<F, BP *>::type,
+            typename R = typename std::remove_reference<RR>::type, typename... Args>
+  R &do_make_graph(F initializer, Args &&...args) {
+    static_assert(std::is_reference_v<RR>, "initializer must return a refernce of a dag node.");
+    BP bluepoint{std::forward<Args>(args)...};
+    bluepoint._hidden_context = _hidden_context;
+    return initializer(&bluepoint);
+  }
+
+  DAG_TEMPLATE_HELPER()
 };
 
 template <template <typename> class BP_Template, typename TypeToSelect = Nothing>
