@@ -2,32 +2,13 @@
 [![License](https://img.shields.io/badge/License-BSD_2--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=darklen84_dag_factory&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=darklen84_dag_factory)
 
-# Background
+# dag_factory
 
-C++ developers are often divided on the topic of dependency injection (DI). The debate isn't just about which DI library to choose (also common in other languages) but also whether DI libraries are necessary in C++ at all. Many prefer to manually create the entire object graph by explicitly wiring dependencies, claiming this approach is simpler and more maintainable than using a DI framework. Is this because they are unfamiliar with the complexities of DI, or have existing DI frameworks strayed from what developers truly need?
+Dag_factory is a single-header C++17 dependency injection (DI) library that employs a different approach compared to other DI libraries. 
 
-To answer these questions, let's examine the characteristics C++ developers expect from a DI library and the aspects they tend to avoid.
+Instead of attempting to imitate well-known DI libraries from other languages and striving to create a similar domain-specific language (DSL) through template metaprogramming—which often results in overly complicated and difficult-to-understand code, it enhances the existing manual dependency injection methods commonly used by developers, to make it more maintainable, more performant and consumes less resource.
 
-## What Developers Like:
-- **Nonintrusive**: Seamlessly integrates without altering existing code.
-- **Compile-time Validation**: Ensures errors are caught early, making the code robust.
-- **Comprehensive Feature Set**: Offers extensive features without imposing overhead unless used (e.g., thread safety).
-- **Minimal Overhead**: Avoids unnecessary performance costs, no forced heap allocation or `shared_ptr` usage.
-- **Zero Third-party Dependencies**: Pure C++ solution without external dependencies.
-- **Support for Multiple Paradigms**: Accommodates both object-oriented and template-based injection.
-- **Transparency**: Dependency resolution is clear and understandable.
-- **Flexibility**: Easily update bindings as needed.
-- **Ease of Integration**: Simple to incorporate into existing projects.
-- **Intelligent**: Automatically wires dependencies through compile-time inference.
-
-## What Developers Dislike:
-- **Learning a New DSL**: The need to learn a new domain-specific language can be a barrier.
-- **Difficult Diagnosis**: Troubleshooting issues can be challenging.
-- **Hidden Semantics**: Unexpected behaviors due to hidden semantics can cause surprises.
-
-## DI without framework
-
-We also discuss common methods C++ developers use to perform dependency injection manually.
+Before we explore what Dag_factory can do, let's have a brief tour of the two popular approaches c++ developer doing dependency injection without the help of DI libraries and discuss their strength and limitations.
 
 Assume that we have following classes:
 ```c++
@@ -83,7 +64,87 @@ void test() {
 }
 
 ```
-While both approaches have their limitations, the **hard_wiring** approach might seem rigid—requiring dependencies to be declared before their dependents, leading to maintenance challenges as the number of objects increases. The **factory** approach, on the other hand, requires the use of smart pointers and enforces heap allocation.
+Here is a quick comparasion of the two:
+
+| Approach       | Pros                                                          | Cons                                                      |
+|----------------|---------------------------------------------------------------|-----------------------------------------------------------|
+| Hard Wiring    | Best performance and space locality.                          | Rigid, requires dependencies to be declared before their dependents. |
+| Factory        | More flexible, dependencies can be overridden by subclassing. | Requires heap allocation, uses smart pointers.            |
+
+While both approaches lack some functionality provided by many DI frameworks, they offer clean, efficient, and functional dependency injection that is widely understood by C++ developers.
+Dag_factory is essentially an enhanced **factory** approach that achieves the same performance as the **hard_wiring** approach while offering numerous features typically found only in DI frameworks.
+
+Here is how Dag_factory builds the same graph:
+
+```c++
+#include "dag/dag_factory.h"
+
+template<typename T>
+struct SystemBlueprint : public dag::Blueprint<T> {
+    DAG_TEMPLATE_HELPER();
+    A& a() { return make_node<A>(b(), b()); }
+    B& b() { return make_node<B>(c()); }
+    C& c() dag_shared { return make_node<C>(); }
+};
+
+void test() {
+    auto factory = DagFactory<SystemBlueprint>();
+    dag::unique_ptr<A> obj = factory.create([](auto bp) -> auto& { return bp->a(); });
+}
+```
+
+Here is the step-by-step explanation:
+
+* The blueprint derives from `dag::Blueprint<T>`, which provides helpers like `make_node<T>()`.
+* `make_node<T>()` is similar to `std::make_unique` or `std::make_shared`, but the created object is owned by the graph, and a reference to the object is returned.
+* `DAG_TEMPLATE_HELPER()` is optional; it provides syntactic sugar so you can call `make_node<T>(...)` directly instead of `this->template make_node<T>(...)`.
+* The `dag_shared` macro acts as a method modifier, indicating that only a single instance of `C` exists within the graph, meaning all other nodes will reference this same instance. If you prefer all macros to be uppercase, `DAG_SHARED` is available with the same functionality.
+* The entire graph is deleted after the `obj` variable goes out of scope. Dag_factory efficiently manages the lifecycle of all nodes within the graph. This allows nodes to receive their dependencies as references, ensuring that the dependencies are properly constructed and destructed in accordance with the graph's lifecycle.
+
+Compared to the original **factory** approach, it eliminates the need to use smart pointers. Dag_factory can construct the entire graph on a given `std::pmr::memory_resource`. When passed an arena-style memory resource like `std::pmr::monotonic_buffer_resource`, the whole graph can be constructed in a contiguous memory block, achieving the same level of performance and data locality as the **hard_wiring** approach.
+
+Here is exactly how:
+
+```c++
+void test() {
+    // Pre-allocate 1K memory
+    std::pmr::monotonic_buffer_resource memory(1024);
+    auto factory = DagFactory<SystemBlueprint>(&memory);
+    dag::unique_ptr<A> obj = factory.create([](auto bp) -> auto& { return bp->a(); });
+}
+```
+
+# Background
+
+C++ developers are often divided on the topic of dependency injection (DI). The debate isn't just about which DI library to choose (also common in other languages) but also whether DI libraries are necessary in C++ at all. Many prefer to manually create the entire object graph by explicitly wiring dependencies, claiming this approach is simpler and more maintainable than using a DI framework. Is this because they are unfamiliar with the complexities of DI, or have existing DI frameworks strayed from what developers truly need?
+
+To answer these questions, let's examine the characteristics C++ developers expect from a DI library and the aspects they tend to avoid.
+
+## What Developers Like:
+- **Nonintrusive**: Seamlessly integrates without altering existing code.
+- **Compile-time Validation**: Ensures errors are caught early, making the code robust.
+- **Comprehensive Feature Set**: Offers extensive features without imposing overhead unless used (e.g., thread safety).
+- **Minimal Overhead**: Avoids unnecessary performance costs, no forced heap allocation or `shared_ptr` usage.
+- **Zero Third-party Dependencies**: Pure C++ solution without external dependencies.
+- **Support for Multiple Paradigms**: Accommodates both object-oriented and template-based injection.
+- **Transparency**: Dependency resolution is clear and understandable.
+- **Flexibility**: Easily update bindings as needed.
+- **Ease of Integration**: Simple to incorporate into existing projects.
+- **Intelligent**: Automatically wires dependencies through compile-time inference.
+
+## What Developers Dislike:
+- **Learning a New DSL**: The need to learn a new domain-specific language can be a barrier.
+- **Difficult Diagnosis**: Troubleshooting issues can be challenging.
+- **Hidden Semantics**: Unexpected behaviors due to hidden semantics can cause surprises.
+
+## DI without framework
+
+We also discuss common methods C++ developers use to perform dependency injection manually.
+
+
+## Comparison Table
+
+
 
 Yet, let's not overlook their strengths! The hard_wiring approach offers the best performance and space locality we can theoretically achieve when creating the desired graph. Both approaches are clean and straightforward.
 
@@ -97,41 +158,7 @@ Instead of attempting to imitate well-known DI libraries from other languages an
 
 Dag_factory uses plain C++ templates to model the dependency information in the object graph, called a blueprint. This blueprint is similar to the factory class in the **factory** approach but offers improved performance and usability. Below is an example of a simple blueprint:
 
-```c++
-#include "dag/dag_factory.h"
 
-template<typename T>
-struct SystemBp: public dag::Blueprint<T> {
-    DAG_TEMPLATE_HELPER();
-    A& a() { return make_node<A>(b(), b()); }
-    B& b() { return make_node<B>(c()); }
-    C& c() dag_shared { return make_node<C>(); }
-};
-
-void test() {
-    auto factory = DagFactory<SystemBlueprint>();
-    dag::unique_ptr<A> obj = factory.create([](auto bp) -> auto & { return bp->a(); }); 
-}
-```
-Here is the step-by-step explanation:
-
-* The blueprint derives from `dag::Blueprint<T>`, which provides utility methods like `make_node<T>()`.
-* `make_node<T>()` is similar to `std::make_unique` or `std::make_shared`, but the created object is owned by the graph, and a reference to the object is returned.
-* `DAG_TEMPLATE_HELPER()` is optional; it provides syntactic sugar so you can call `make_node<T>(...)` directly instead of `this->template make_node<T>(...)`.
-* The `dag_shared` macro acts as a method modifier, indicating that only a single instance of `C` exists within the graph, meaning all other nodes will reference this same instance. If you prefer all macros to be uppercase, `DAG_SHARED` is available with the same functionality.
-* The entire graph is deleted after the `obj` variable goes out of scope. `dag_factory` efficiently manages the lifecycle of all nodes within the graph. This allows nodes to receive their dependencies as references, ensuring that the dependencies are properly constructed and destructed in accordance with the graph's lifecycle.
-
-Compared to the original **factory** approach, it eliminates the need to use smart pointers. `dag_factory` can construct the entire graph on a given `std::pmr::memory_resource`. When passed an arena-style memory resource like `std::pmr::monotonic_buffer_resource`, the whole graph can be constructed in a contiguous memory block, achieving the same level of performance and data locality as the **hard_wiring** approach.
-
-Here is exactly how:
-
-```c++
-void test() {
-    //pre-alocate 1K memory
-    std::pmr::memory_resource memory(1024);
-    auto factory = DagFactory<SystemBlueprint>(&memory);
-    dag::unique_ptr<A> obj = factory.create([](auto bp) -> auto & { return bp->a(); }); 
-}
 ```
 
 (end)
