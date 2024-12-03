@@ -245,7 +245,7 @@ struct System8 : public Blueprint<T> {
 struct MyIntercepter {
   int called = 0;
   template <typename T>
-  dag::unique_ptr<T> intercept(std::pmr::memory_resource *memory, dag::unique_ptr<T> v) {
+  dag::unique_ptr<T> after_create(std::pmr::memory_resource *memory, dag::unique_ptr<T> v) {
     ++called;
     return std::move(v);
   }

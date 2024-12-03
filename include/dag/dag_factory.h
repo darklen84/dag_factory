@@ -99,7 +99,7 @@ struct DefaultCreater {
 
 struct DefaultIntercepter {
   template <typename T>
-  dag::unique_ptr<T> intercept(std::pmr::memory_resource *memory, dag::unique_ptr<T> v) {
+  dag::unique_ptr<T> after_create(std::pmr::memory_resource *memory, dag::unique_ptr<T> v) {
     return std::move(v);
   }
   static DefaultIntercepter &instance() {
@@ -147,7 +147,7 @@ struct Blueprint {
     std::pmr::memory_resource *memory = context->m_Dag.m_entryPoints.get_allocator().resource();
     unique_ptr<NodeType> o =
         context->m_Creater.template create<NodeType>(memory, std::forward<Args>(args)...);
-    o = context->m_Intercepter.template intercept<NodeType>(memory, std::move(o));
+    o = context->m_Intercepter.template after_create<NodeType>(memory, std::move(o));
     NodeType *ptr = o.release();
     context->m_Dag.m_Components.emplace_back(ptr, std::type_index(typeid(NodeType)),
                                              o.get_deleter());
