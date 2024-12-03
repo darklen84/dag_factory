@@ -37,7 +37,7 @@ struct System : public Blueprint<T> {
 TEST_CASE(
     "factory functions tagged with DAG_SHARED() returns the same instance across multiple calls",
     "Blueprint") {
-  auto factory = DagFactory<System, B>();
+  auto factory = DagFactory<System, Select<B>>();
   auto [entry, selections] = factory.create([](auto bp) -> auto & { return bp->d(); });
 
   REQUIRE(selections->size() == 1);
@@ -45,7 +45,7 @@ TEST_CASE(
 
 //------------------------------------------------------------------------------
 TEST_CASE("normal factory function returns a new instance across multiple calls", "Blueprint") {
-  auto factory = DagFactory<System, A>();
+  auto factory = DagFactory<System, Select<A>>();
   auto [entry, selections] = factory.create([](auto bp) -> auto & { return bp->d(); });
 
   REQUIRE(selections->size() == 2);
@@ -61,7 +61,7 @@ struct System2 : public System<T> {
 }  // namespace
 //------------------------------------------------------------------------------
 TEST_CASE("factory can be overriden using runtime polymorphism", "Blueprint") {
-  auto factory = DagFactory<System, A>();
+  auto factory = DagFactory<System, Select<A>>();
   auto [entry, selections] = factory.create([](auto bp) -> auto & { return bp->d(); });
   REQUIRE(selections->size() == 2);
 }
@@ -89,7 +89,7 @@ struct System3 : public Blueprint<T> {
 }  // namespace
 
 TEST_CASE("Blueprints with custom constructor are supported", "Blueprint") {
-  auto factory = DagFactory<System3, std::map<int, int>>();
+  auto factory = DagFactory<System3, Select<std::map<int, int>>>();
   auto [entry, selections] = factory.create([](auto bp) -> auto & { return bp->a(); }, 1, 2);
 
   REQUIRE(selections->size() == 1);
@@ -111,7 +111,7 @@ struct System4 : public Blueprint<T> {
 
 TEST_CASE("factory use and propagate the memory resource", "Resource") {
   auto memory = std::pmr::new_delete_resource();
-  auto factory = DagFactory<System4, std::pmr::vector<std::pmr::string>>(memory);
+  auto factory = DagFactory<System4, Select<std::pmr::vector<std::pmr::string>>>(memory);
   auto [entry, selections] = factory.create([](auto bp) -> auto & { return bp->a(); });
 
   REQUIRE(selections->size() == 1);
@@ -146,7 +146,7 @@ struct System7 : public Blueprint<T> {
 
 }  // namespace
 TEST_CASE("Blueprints can create sub-graphs", "Blueprint") {
-  auto factory = DagFactory<System7, A>();
+  auto factory = DagFactory<System7, Select<A>>();
   auto [entry, selections] = factory.create([](auto bp) -> auto & { return bp->d(); });
 
   REQUIRE(selections->size() == 3);  // one a created in the main graph and two in the subgraph
@@ -177,7 +177,7 @@ struct CRTPSystem2 : public CRTPSystem<CRTPSystem2<T>, T> {};
 
 TEST_CASE("factory can be overriden using curiously recurring template", "Blueprint") {
   // B
-  auto factory = DagFactory<CRTPSystem2, B>();
+  auto factory = DagFactory<CRTPSystem2, Select<B>>();
   auto [entry, selections] = factory.create([](auto bp) -> auto & { return bp->d(); });
 
   REQUIRE(selections->size() == 2);
@@ -198,7 +198,7 @@ struct System5 : public Blueprint<T> {
 }  // namespace
 
 TEST_CASE("DAG_SHARED() can be used wth auto", "Blueprint") {
-  auto factory = DagFactory<System5, A>();
+  auto factory = DagFactory<System5, Select<A>>();
   auto [entry, selections] = factory.create([](auto bp) -> auto & { return bp->d(); });
 
   REQUIRE(selections->size() == 1);
@@ -224,7 +224,7 @@ struct System6 : public Blueprint<T> {
 }  // namespace
 
 TEST_CASE("make_node_t() constructs template", "Blueprint") {
-  auto factory = DagFactory<System6, int>();
+  auto factory = DagFactory<System6, Select<int>>();
   auto [entry, selections] = factory.create([](auto bp) -> auto & { return bp->d(); });
 
   REQUIRE(selections->size() == 1);

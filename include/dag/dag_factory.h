@@ -85,6 +85,11 @@ unique_ptr<T> make_unique_on_memory(std::pmr::memory_resource *memory, Args &&..
     alloc.deallocate(obj, 1);
   });
 }
+template <typename T>
+struct Select {
+  using TypeToSelect = T;
+};
+
 template <typename Selection>
 struct DagExtensions {
   using TypeToSelect = Selection;
@@ -177,13 +182,14 @@ struct Blueprint {
   DAG_TEMPLATE_HELPER()
 };
 
-template <template <typename> class BP_Template, typename TypeToSelect = Nothing>
+template <template <typename> class BP_Template, typename Selector = Select<Nothing>>
 struct DagFactory {
+  using TypeToSelect = typename Selector::TypeToSelect;
   using BP = BP_Template<DagExtensions<TypeToSelect>>;
   explicit DagFactory(std::pmr::memory_resource *memory = std::pmr::get_default_resource()) {
     m_memory = memory;
   }
-  DagFactory(const DagFactory<BP_Template, TypeToSelect> &) = default;
+  DagFactory(const DagFactory<BP_Template, Selector> &) = default;
 
   template <typename F, typename RR = typename std::invoke_result<F, BP *>::type,
             typename R = typename std::remove_reference<RR>::type, typename... Args>
