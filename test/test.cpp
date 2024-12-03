@@ -229,3 +229,50 @@ TEST_CASE("make_node_t() constructs template", "Blueprint") {
 
   REQUIRE(selections->size() == 1);
 }
+
+//------------------------------------------------------------------------------
+namespace {
+
+template <typename T>
+struct System8 : public Blueprint<T> {
+  DAG_TEMPLATE_HELPER()
+  A &a() { return make_node<A>(); }
+  B &b() dag_shared { return make_node<B>(a()); }
+  C &c() { return make_node<C>(a(), b()); }
+  D &d() { return make_node<D>(b(), c()); }
+  D &config() { return d(); }
+};
+struct MyIntercepter {
+  int called = 0;
+  template <typename T>
+  dag::unique_ptr<T> intercept(std::pmr::memory_resource *memory, dag::unique_ptr<T> v) {
+    ++called;
+    return std::move(v);
+  }
+};
+struct MyCreater {
+  int called = 0;
+  template <typename T, typename... Args>
+  dag::unique_ptr<T> create(std::pmr::memory_resource *memory, Args &&...args) {
+    ++called;
+    return dag::make_unique_on_memory<T>(memory, std::forward<Args>(args)...);
+  }
+};
+}  // namespace
+TEST_CASE("intercepter is called for every node created", "Blueprint") {
+  MyIntercepter intercepter;
+  auto factory =
+      DagFactory<System8, Select<A>, MyIntercepter>(std::pmr::get_default_resource(), intercepter);
+  auto [entry, selections] = factory.create([](auto bp) -> auto & { return bp->d(); });
+  REQUIRE(intercepter.called == 5);
+  REQUIRE(selections->size() == 2);
+}
+
+TEST_CASE("creater is called for every node", "Blueprint") {
+  MyCreater creater;
+  auto factory = DagFactory<System8, Select<A>, DefaultIntercepter, MyCreater>(
+      std::pmr::get_default_resource(), DefaultIntercepter::instance(), creater);
+  auto [entry, selections] = factory.create([](auto bp) -> auto & { return bp->d(); });
+  REQUIRE(creater.called == 5);
+  REQUIRE(selections->size() == 2);
+}
