@@ -100,7 +100,7 @@ Here is the step-by-step explanation:
 * `make_node<T>()` is similar to `std::make_unique` or `std::make_shared`, but the created object is owned by the graph, and a reference to the object is returned.
 * `DAG_TEMPLATE_HELPER()` is optional; it provides syntactic sugar so you can call `make_node<T>(...)` directly instead of `this->template make_node<T>(...)`.
 * The `dag_shared` macro acts as a method modifier, indicating that only a single instance of `C` exists within the graph, meaning all other nodes will reference this same instance. If you prefer all macros to be uppercase, `DAG_SHARED` is available with the same functionality.
-* The entire graph is deleted after the `obj` variable goes out of scope. Dag_factory efficiently manages the lifecycle of all nodes within the graph. This allows nodes to receive their dependencies as references, ensuring that the dependencies are properly constructed and destructed in accordance with the graph's lifecycle.
+* Dag_factory efficiently manages the lifecycle of all nodes within the graph. This allows nodes to receive their dependencies as references, ensuring that the dependencies are properly constructed and destructed in accordance with the graph's lifecycle. The entire graph is deleted after the `obj` variable goes out of scope.
 
 Compared to the original **factory** approach, it eliminates the need to use smart pointers. Dag_factory can construct the entire graph on a given `std::pmr::memory_resource`. When passed an arena-style memory resource like `std::pmr::monotonic_buffer_resource`, the whole graph can be constructed in a contiguous memory block, achieving the same level of performance and data locality as the **hard_wiring** approach.
 
@@ -144,7 +144,7 @@ The manual dependency injection methods previously mentioned actually meet 7 out
 
 The preference for manual dependency injection is not without merit. It reflects the views of a significant portion of C++ developers who value simplicity and explicitness over a comprehensive feature set.
 
-Instead of teaching C++ developers to adopt dependency injection methods and concepts from other languages, Dag_factory aims to enhance the existing dependency injection techniques that C++ developers are already familiar with and improve upon them.
+Instead of teaching C++ developers to adopt dependency injection methods and concepts borrowed from other languages, Dag_factory aims to enhance the existing dependency injection techniques that C++ developers are already familiar with and improve upon them.
 
 Using the **factory** approach as the basis, Dag_factory introduces enhancements to achieve features typically found in a DI framework. As a principle, Dag_factory only adds features that can be achieved without touching any areas that developers dislike.
 
