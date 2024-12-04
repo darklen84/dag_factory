@@ -98,10 +98,13 @@ struct DefaultCreater {
 };
 
 struct DefaultIntercepter {
+  template <typename... Args>
+  void before_create(const std::tuple<Args &&...> &params) {}
   template <typename T>
   dag::unique_ptr<T> after_create(std::pmr::memory_resource *memory, dag::unique_ptr<T> v) {
     return std::move(v);
   }
+
   static DefaultIntercepter &instance() {
     static DefaultIntercepter instance;
     return instance;

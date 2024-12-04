@@ -242,7 +242,7 @@ struct System8 : public Blueprint<T> {
   D &d() { return make_node<D>(b(), c()); }
   D &config() { return d(); }
 };
-struct MyIntercepter {
+struct MyIntercepter : public DefaultIntercepter {
   int called = 0;
   template <typename T>
   dag::unique_ptr<T> after_create(std::pmr::memory_resource *memory, dag::unique_ptr<T> v) {
@@ -250,7 +250,7 @@ struct MyIntercepter {
     return std::move(v);
   }
 };
-struct MyCreater {
+struct MyCreater : public DefaultCreater {
   int called = 0;
   template <typename T, typename... Args>
   dag::unique_ptr<T> create(std::pmr::memory_resource *memory, Args &&...args) {
