@@ -7,13 +7,19 @@ Instead of attempting to imitate well-known DI libraries from other languages an
 Before we explore what Dag_factory can do, let's have a brief tour of the two popular approaches c++ developer doing dependency injection without the help of DI libraries and discuss their strength and limitations.
 
 Assume that we have following classes:
-```c++
+
+
+```cpp
+struct B;
+
+struct C;
+
 struct A {
-    explicit A(B& b1, B& b2) {}  
+  explicit A(B& b1, B& b2) {}
 };
 
 struct B {
-    explicit B(C& c) {}
+  explicit B(C& c) {}
 };
 
 struct C {};
@@ -35,41 +41,17 @@ b_2 --> c
 
 Here is one approach people use ( we will called it **hard_wiring** approach in the rest of the document):
 
-```C++
-struct Container{
-    C c;
-    B b1{c};
-    B b2{c};
-    A a{b1, b2};
-};
+[snippet](snippets/hard_wiring.cpp ':include :type=code :fragment=hard_wiring')
 
-void test() {
-    Container container;
-    A& obj = container.a;
-}
-```
 Here is another approach ( we call it **factory** approach):
 
-```C++
-struct Factory {
-    std::unique_ptr<A> a() { return std::make_unique<A>(b(), b()); }
-    std::unique_ptr<B> b() { return std::make_unique<B>(c());}
+[snippet](snippets/factory.cpp ':include :type=code :fragment=factory')
 
-    std::shared_ptr<C> c_ptr;
-    std::shared_ptr<C> c() {
-        if(nullptr == c_ptr){
-            c_ptr = std::make_shared<C>();
-        }
-        return c_ptr;
-    }
-};
 
-void test() {
-    Factory factory;
-    unique_ptr<A> obj = factory.a();
-}
 
-```
+>Note: You also needs to change the constructor parameters of the corresponding class to be `std::unique_ptr` or `std::shared_ptr` as well.
+
+
 Here is a quick comparasion of the two:
 
 | Approach       | Pros                                                          | Cons                                                      |
@@ -83,22 +65,11 @@ At first glance, Dag_factory appears to be an enhanced version of the **factory*
 
 Here is how Dag_factory builds the same graph:
 
-```c++
-#include "dag/dag_factory.h"
+[snappit](snippets/dag_factory.cpp ':include :type=code :fragment=dag_factory_include')
 
-template<typename T>
-struct SystemBlueprint : public dag::Blueprint<T> {
-    DAG_TEMPLATE_HELPER();
-    A& a() { return make_node<A>(b(), b()); }
-    B& b() { return make_node<B>(c()); }
-    C& c() dag_shared { return make_node<C>(); }
-};
+[snappit](snippets/dag_factory.cpp ':include :type=code :fragment=dag_factory_factory_1')
 
-void test() {
-    auto factory = DagFactory<SystemBlueprint>();
-    dag::unique_ptr<A> obj = factory.create([](auto bp) -> auto& { return bp->a(); });
-}
-```
+
 
 Here is the step-by-step explanation:
 
@@ -112,14 +83,7 @@ Compared to the original **factory** approach, it eliminates the need to use sma
 
 Here is exactly how:
 
-```c++
-void test() {
-    // Pre-allocate 1K memory
-    std::pmr::monotonic_buffer_resource memory(1024);
-    auto factory = DagFactory<SystemBlueprint>(&memory);
-    dag::unique_ptr<A> obj = factory.create([](auto bp) -> auto& { return bp->a(); });
-}
-```
+[snappit](snippets/dag_factory.cpp ':include :type=code :fragment=dag_factory_factory_2')
 
 
 ## Background

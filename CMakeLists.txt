@@ -26,6 +26,6 @@ if(DAG_ENABLE_TEST)
     enable_testing()
     add_subdirectory(test)
 endif()
-
+add_subdirectory(docs/snippets)
 
 
