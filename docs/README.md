@@ -122,13 +122,13 @@ void test() {
 ```
 
 
-# Background
+## Background
 
 C++ developers are often divided on the topic of dependency injection (DI). The debate isn't just about which DI library to choose (also common in other languages) but also whether DI libraries are necessary in C++ at all. Many prefer to manually create the entire object graph by explicitly wiring dependencies, claiming this approach is simpler and more maintainable than using a DI framework. Is this because they have overlooked complexities of DI, or have existing DI frameworks strayed from what developers truly need?
 
 Before try to answer these questions, let's examine the characteristics C++ developers expect from a DI library and the aspects they tend to avoid.
 
-## What Developers Like:
+### What Developers Like:
 - **Nonintrusive**: Seamlessly integrates without altering existing code.
 - **Compile-time Validation**: Ensures errors are caught early, making the code robust.
 - **Zero Overhead**: Don't pay the overhead from the features you don't use. (e.g., thread safety).
@@ -140,12 +140,12 @@ Before try to answer these questions, let's examine the characteristics C++ deve
 - **Ease of Integration**: Simple to incorporate into existing projects.
 - **Intelligent**: Automatically wires dependencies through compile-time inference.
 
-## What Developers Dislike:
+### What Developers Dislike:
 - **Learning a New DSL**: The need to learn a new domain-specific language can be a barrier.
 - **Difficult Diagnosis**: Troubleshooting issues can be challenging.
 - **Hidden Semantics**: Unexpected behaviors due to hidden semantics can cause surprises.
 
-## The Observation
+### The Observation
 The manual dependency injection methods previously mentioned actually meet 7 out of 10 characteristics developers like and do not have any characteristics developers dislike. Their score is even higher than most of the existing DI frameworks. 
 
 The preference for manual dependency injection is not without merit. It reflects the views of a significant portion of C++ developers who value simplicity and explicitness over a comprehensive feature set.
