@@ -1,4 +1,4 @@
-# dag_factory
+## Introduction
 
 Dag_factory is a single-header C++17 dependency injection (DI) library that employs a different approach compared to other DI libraries. 
 
