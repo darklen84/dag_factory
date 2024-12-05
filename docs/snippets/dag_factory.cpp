@@ -19,8 +19,8 @@ static void test() {
 /// [dag_factory_factory_1]
 /// [dag_factory_factory_2]
 static void test2() {
-  // Pre-allocate 1K memory
-  std::pmr::monotonic_buffer_resource memory(1024);
+  // Pre-allocate 10K memory
+  std::pmr::monotonic_buffer_resource memory(1024 * 10);
   auto factory = dag::DagFactory<SystemBlueprint>(&memory);
   dag::unique_ptr<A> obj = factory.create([](auto bp) -> auto& { return bp->a(); });
 }

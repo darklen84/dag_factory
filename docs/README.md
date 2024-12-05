@@ -49,7 +49,7 @@ Here is another approach ( we call it **factory** approach):
 
 
 
->Note: You also needs to change the constructor parameters of the corresponding class to be `std::unique_ptr` or `std::shared_ptr` as well.
+>Note: You also needs to change the constructor parameters of the corresponding classes to be `std::unique_ptr` or `std::shared_ptr` as well.
 
 
 Here is a quick comparasion of the two:
@@ -109,7 +109,7 @@ Before try to answer these questions, let's examine the characteristics C++ deve
 - **Difficult Diagnosis**: Troubleshooting issues can be challenging.
 - **Hidden Semantics**: Unexpected behaviors due to hidden semantics can cause surprises.
 
-### The Observation
+### The Dicision
 The manual dependency injection methods previously mentioned actually meet 7 out of 10 characteristics developers like and do not have any characteristics developers dislike. Their score is even higher than most of the existing DI frameworks. 
 
 The preference for manual dependency injection is not without merit. It reflects the views of a significant portion of C++ developers who value simplicity and explicitness over a comprehensive feature set.
