@@ -63,7 +63,7 @@ struct MutableDag : public Dag<TypeToSelect> {
   ~MutableDag() override {
     // components needs to be deleted in the reverse order of their creation.
     for (auto itr = m_Components.rbegin(); itr != m_Components.rend(); ++itr) {
-      itr->reset(nullptr);
+      itr->reset(nullptr);  // NOSONAR
     }
   }
   MutableDag &operator=(MutableDag &&) = delete;
