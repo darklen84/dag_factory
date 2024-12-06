@@ -175,7 +175,6 @@ struct CRTPSystem2 : public CRTPSystem<CRTPSystem2<T>, T> {};
 }  // namespace
 
 TEST_CASE("factory can be overriden using curiously recurring template", "Blueprint") {
-  // B
   auto factory = DagFactory<CRTPSystem2, Select<B>>();
   auto [entry, selections] = factory.create([](auto bp) -> auto & { return bp->d(); });
 
