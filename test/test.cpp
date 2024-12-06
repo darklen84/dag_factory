@@ -9,7 +9,7 @@ struct Base {};
 
 struct A : public Base {
   A() = default;
-  A(const A &a) = delete;
+  A &operator=(A &&) = delete;
 };
 struct B : public Base {
   explicit B(A &a) {}

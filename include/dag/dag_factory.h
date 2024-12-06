@@ -67,7 +67,7 @@ struct MutableDag : public Dag<TypeToSelect> {
       fn(std::get<0>(*itr));
     }
   }
-  MutableDag &operator=(const MutableDag &) = delete;
+  MutableDag &operator=(MutableDag &&) = delete;
   const std::pmr::vector<TypeToSelect *> &selections() const override { return m_entryPoints; }
 
   std::pmr::vector<std::tuple<void *, deleter>> m_Components;
