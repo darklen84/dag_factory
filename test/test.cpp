@@ -29,7 +29,6 @@ struct System : public Blueprint<T> {
   virtual B &b() dag_shared { return make_node<B>(a()); }
   C &c() { return make_node<C>(a(), b()); }
   D &d() { return make_node<D>(b(), c()); }
-  // D &config() { return d(); }
 };
 
 }  // namespace
