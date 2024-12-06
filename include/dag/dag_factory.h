@@ -67,6 +67,7 @@ struct MutableDag : public Dag<TypeToSelect> {
       fn(std::get<0>(*itr));
     }
   }
+  MutableDag &operator=(const MutableDag &) = delete;
   const std::pmr::vector<TypeToSelect *> &selections() const override { return m_entryPoints; }
 
   std::pmr::vector<std::tuple<void *, deleter>> m_Components;
@@ -98,7 +99,9 @@ struct DefaultCreater {
 
 struct DefaultIntercepter {
   template <typename... Args>
-  void before_create(const std::tuple<Args &&...> &params) {}
+  void before_create(const std::tuple<Args &&...> &params) {
+    // do nothing
+  }
   template <typename T>
   dag::unique_ptr<T> after_create(std::pmr::memory_resource *memory, dag::unique_ptr<T> v) {
     return std::move(v);
