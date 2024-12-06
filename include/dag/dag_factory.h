@@ -2,7 +2,6 @@
 #include <memory>
 #include <memory_resource>
 #include <type_traits>
-#include <typeindex>
 #include <utility>
 #include <vector>
 #pragma one
@@ -64,13 +63,13 @@ struct MutableDag : public Dag<TypeToSelect> {
   ~MutableDag() override {
     // components needs to be deleted in the reverse order of their creation.
     for (auto itr = m_Components.rbegin(); itr != m_Components.rend(); ++itr) {
-      deleter fn = std::get<2>(*itr);
+      deleter fn = std::get<1>(*itr);
       fn(std::get<0>(*itr));
     }
   }
   const std::pmr::vector<TypeToSelect *> &selections() const override { return m_entryPoints; }
 
-  std::pmr::vector<std::tuple<void *, std::type_index, deleter>> m_Components;
+  std::pmr::vector<std::tuple<void *, deleter>> m_Components;
   std::pmr::vector<TypeToSelect *> m_entryPoints;
 };
 
@@ -152,8 +151,7 @@ struct Blueprint {
         context->m_Creater.template create<NodeType>(memory, std::forward<Args>(args)...);
     o = context->m_Intercepter.template after_create<NodeType>(memory, std::move(o));
     NodeType *ptr = o.release();
-    context->m_Dag.m_Components.emplace_back(ptr, std::type_index(typeid(NodeType)),
-                                             o.get_deleter());
+    context->m_Dag.m_Components.emplace_back(ptr, o.get_deleter());
     context->saveEntrypoint(ptr);
     return *ptr;
   }
@@ -237,5 +235,4 @@ struct DagFactory {
   Intercepter &m_intercepter;
   Creater &m_creater;
 };
-
 }  // namespace dag
