@@ -79,7 +79,7 @@ unique_ptr<T> make_unique_on_memory(std::pmr::memory_resource *memory, Args &&..
   std::pmr::polymorphic_allocator<T> alloc{memory};
   T *raw = alloc.allocate(1);
   alloc.construct(raw, std::forward<Args>(args)...);
-  return unique_ptr<T>(raw, [alloc](void *p) mutable {
+  return unique_ptr<T>(raw, [alloc](void *p) mutable {  // NOSONAR
     auto obj = static_cast<T *>(p);
     alloc.destroy(obj);
     alloc.deallocate(obj, 1);
@@ -133,7 +133,7 @@ struct DagContext {
   explicit DagContext(MutableDag<TypeToSelect> &dag, Creater &creater, Intercepter &intercepter)
       : m_Dag(dag), m_Creater(creater), m_Intercepter(intercepter) {}
   void saveEntrypoint(TypeToSelect *o) { m_Dag.m_entryPoints.push_back(o); }
-  void saveEntrypoint(...) {}
+  void saveEntrypoint(...) {}  // NOSONAR
   MutableDag<TypeToSelect> &m_Dag;
   Creater &m_Creater;
   Intercepter &m_Intercepter;
@@ -212,7 +212,7 @@ struct DagFactory {
     MutableDag<typename BP::TypeToSelect> *dag_address = dag.release();
     auto dag_deleter = dag.get_deleter();
     return {unique_ptr<R>(&result,
-                          [dag_address, alloc](void *) mutable {
+                          [dag_address, alloc](void *) mutable {  // NOSONAR
                             alloc.destroy(dag_address);
                             alloc.deallocate(dag_address, 1);
                           }),
