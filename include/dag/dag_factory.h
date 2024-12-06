@@ -63,14 +63,14 @@ struct MutableDag : public Dag<TypeToSelect> {
   ~MutableDag() override {
     // components needs to be deleted in the reverse order of their creation.
     for (auto itr = m_Components.rbegin(); itr != m_Components.rend(); ++itr) {
-      deleter fn = std::get<1>(*itr);
-      fn(std::get<0>(*itr));
+      itr->reset(nullptr);
     }
   }
   MutableDag &operator=(MutableDag &&) = delete;
   const std::pmr::vector<TypeToSelect *> &selections() const override { return m_entryPoints; }
 
-  std::pmr::vector<std::tuple<void *, deleter>> m_Components;
+  // std::pmr::vector<std::tuple<void *, deleter>> m_Components;
+  std::pmr::vector<unique_ptr<void>> m_Components;
   std::pmr::vector<TypeToSelect *> m_entryPoints;
 };
 
@@ -153,8 +153,8 @@ struct Blueprint {
     unique_ptr<NodeType> o =
         context->m_Creater.template create<NodeType>(memory, std::forward<Args>(args)...);
     o = context->m_Intercepter.template after_create<NodeType>(memory, std::move(o));
-    NodeType *ptr = o.release();
-    context->m_Dag.m_Components.emplace_back(ptr, o.get_deleter());
+    NodeType *ptr = o.get();
+    context->m_Dag.m_Components.emplace_back(std::move(o));
     context->saveEntrypoint(ptr);
     return *ptr;
   }
