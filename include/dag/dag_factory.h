@@ -69,7 +69,6 @@ struct MutableDag : public Dag<TypeToSelect> {
   MutableDag &operator=(MutableDag &&) = delete;
   const std::pmr::vector<TypeToSelect *> &selections() const override { return m_entryPoints; }
 
-  // std::pmr::vector<std::tuple<void *, deleter>> m_Components;
   std::pmr::vector<unique_ptr<void>> m_Components;
   std::pmr::vector<TypeToSelect *> m_entryPoints;
 };
@@ -88,7 +87,7 @@ unique_ptr<T> make_unique_on_memory(std::pmr::memory_resource *memory, Args &&..
 
 struct DefaultCreater {
   template <typename T, typename... Args>
-  dag::unique_ptr<T> create(std::pmr::memory_resource *memory, Args &&...args) {
+  dag::unique_ptr<T> create(std::pmr::memory_resource *memory, Args &&...args) const {
     return dag::make_unique_on_memory<T>(memory, std::forward<Args>(args)...);
   }
   static DefaultCreater &instance() {
@@ -99,11 +98,12 @@ struct DefaultCreater {
 
 struct DefaultIntercepter {
   template <typename... Args>
-  void before_create(const std::tuple<Args &&...> &params) {
+  void before_create([[maybe_unused]] const std::tuple<Args &&...> &params) const {
     // do nothing
   }
   template <typename T>
-  dag::unique_ptr<T> after_create(std::pmr::memory_resource *memory, dag::unique_ptr<T> v) {
+  dag::unique_ptr<T> after_create([[maybe_unused]] std::pmr::memory_resource *memory,
+                                  dag::unique_ptr<T> v) const {
     return std::move(v);
   }
 
