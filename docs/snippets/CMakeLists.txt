@@ -3,6 +3,7 @@ add_executable(doc_snippets
     hard_wiring.cpp
     factory.cpp
     dag_factory.cpp
+    car_sim.cpp
 )
 
 target_link_libraries(doc_snippets PRIVATE dag_factory)
