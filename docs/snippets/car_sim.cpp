@@ -132,6 +132,15 @@ struct CarSimIntercepter : public dag::DefaultIntercepter {
   }
 };
 
+struct CarSimCreator : public dag::DefaultCreater {
+  using dag::DefaultCreater::create;
+  template <typename T, typename... Args>
+  dag::unique_ptr<T> create(std::pmr::memory_resource *memory, Args &&...args) {
+    std::cout << "Intercepted Engine creation. " << std::endl;
+    return dag::make_unique_on_memory<T>(memory, std::forward<Args>(args)...);
+  }
+};
+
 }  // namespace Oop
 
 namespace Template {

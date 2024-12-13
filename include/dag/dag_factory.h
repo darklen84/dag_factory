@@ -97,10 +97,6 @@ struct DefaultCreater {
 };
 
 struct DefaultIntercepter {
-  template <typename... Args>
-  void before_create([[maybe_unused]] const std::tuple<Args &&...> &params) const {
-    // do nothing
-  }
   template <typename T>
   dag::unique_ptr<T> after_create([[maybe_unused]] std::pmr::memory_resource *memory,
                                   dag::unique_ptr<T> v) const {
