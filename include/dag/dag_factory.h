@@ -152,7 +152,7 @@ struct Blueprint {
     std::pmr::memory_resource *memory = context->m_Dag.m_entryPoints.get_allocator().resource();
     unique_ptr<NodeType> o =
         context->m_Creater.template create<NodeType>(memory, std::forward<Args>(args)...);
-    o = context->m_Intercepter.template after_create<NodeType>(memory, std::move(o));
+    o = context->m_Intercepter.after_create(memory, std::move(o));
     NodeType *ptr = o.get();
     context->m_Dag.m_Components.emplace_back(std::move(o));
     context->saveEntrypoint(ptr);

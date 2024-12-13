@@ -4,6 +4,26 @@
 #include "dag/dag_factory.h"
 
 namespace Oop {
+struct Tank {
+  virtual ~Tank() = default;
+  virtual void fill(unsigned int fuel) = 0;
+};
+
+struct GasolineTank : public Tank {
+  GasolineTank() { std::cout << "Gasoline Tank created" << std::endl; }
+  ~GasolineTank() override { std::cout << "Gasoline Tank destroyed" << std::endl; }
+  void fill(unsigned int fuel) override {
+    std::cout << "Gasoline Tank  filled: " << fuel << std::endl;
+  }
+};
+
+struct DieselTank : public Tank {
+  DieselTank() { std::cout << "Diesel Tank created" << std::endl; }
+  ~DieselTank() override { std::cout << "Diesel Tank destroyed" << std::endl; }
+  void fill(unsigned int fuel) override {
+    std::cout << "Diesel Tank  filled： " << fuel << std::endl;
+  }
+};
 
 struct Engine {
   virtual ~Engine() = default;
@@ -13,15 +33,19 @@ struct Engine {
 };
 
 struct V6Engine : public Engine {
+  explicit V6Engine(Tank &tank) : m_tank(tank) { std::cout << "V6 Engine created" << std::endl; }
+
   ~V6Engine() override { std::cout << "V6 Engine destroyed" << std::endl; }
   void start() override { std::cout << "V6 Engine started" << std::endl; }
   unsigned int getSpeed() override { return m_speed; }
   void setSpeed(unsigned int speed) override { m_speed = speed; }
 
   unsigned int m_speed = 180;
+  Tank &m_tank;
 };
 
 struct I4Engine : public Engine {
+  explicit I4Engine(Tank &tank) : m_tank(tank) { std::cout << "I4 Engine created" << std::endl; }
   ~I4Engine() override { std::cout << "I4 Engine destroyed" << std::endl; }
   void start() override { std::cout << "I4 Engine started" << std::endl; }
   unsigned int getSpeed() override { return m_speed; }
@@ -31,6 +55,7 @@ struct I4Engine : public Engine {
   }
 
   unsigned int m_speed = 120;
+  Tank &m_tank;
 };
 
 struct Transmission {
@@ -77,10 +102,13 @@ template <typename T>
 struct CarSimulatorBlueprint : public dag::Blueprint<T> {
   DAG_TEMPLATE_HELPER();
   CarSimulator &carSimulator() { return make_node<CarSimulator>(engine(), transmission()); }
+  virtual Tank &tank() { return gasolineTank(); }
+  GasolineTank &gasolineTank() dag_shared { return make_node<GasolineTank>(); }
+  DieselTank &dieselTank() dag_shared { return make_node<DieselTank>(); }
 
   virtual Engine &engine() { return i4Engine(); }
-  I4Engine &i4Engine() dag_shared { return make_node<I4Engine>(); }
-  V6Engine &v6Engine() dag_shared { return make_node<V6Engine>(); }
+  I4Engine &i4Engine() dag_shared { return make_node<I4Engine>(tank()); }
+  V6Engine &v6Engine() dag_shared { return make_node<V6Engine>(tank()); }
 
   virtual Transmission &transmission() { return cvtTransmission(); }
   AutoTransmission &autoTransmission() dag_shared { return make_node<AutoTransmission>(engine()); }
@@ -92,6 +120,16 @@ struct PowerfulCarSimulatorBlueprint : public CarSimulatorBlueprint<T> {
   DAG_TEMPLATE_HELPER();
   Engine &engine() override { return this->v6Engine(); }
   Transmission &transmission() override { return this->autoTransmission(); }
+};
+
+struct CarSimIntercepter : public dag::DefaultIntercepter {
+  using dag::DefaultIntercepter::after_create;
+  dag::unique_ptr<GasolineTank> after_create(std::pmr::memory_resource *memory,
+                                             dag::unique_ptr<GasolineTank> tank) {
+    std::cout << "Intercepted GasolineTank creation. " << std::endl;
+    tank->fill(100);
+    return std::move(tank);
+  }
 };
 
 }  // namespace Oop
@@ -178,17 +216,34 @@ struct PowerfulCarSimulatorBlueprint
 
 }  // namespace Template
 
-void run_oop() {
+void run_sim_oop() {
   using namespace Oop;
-  dag::DagFactory<CarSimulatorBlueprint> factory;
+  dag::DagFactory<PowerfulCarSimulatorBlueprint> factory;
+  std::cout << "===========Running OOP simulation==========" << std::endl;
   dag::unique_ptr<CarSimulator> simulator =
       factory.create([](auto bp) -> auto & { return bp->carSimulator(); });
   simulator->start();
+  std::cout << "===========Ending OOP simulation==========" << std::endl;
 }
 
-void run_template() {
+void run_sim_template() {
   using namespace Template;
+  std::cout << "===========Running template simulation===========" << std::endl;
   dag::DagFactory<PowerfulCarSimulatorBlueprint> factory;
   auto simulator = factory.create([](auto bp) -> auto & { return bp->carSimulator(); });
   simulator->start();
+  std::cout << "===========Ending template===========" << std::endl;
+}
+
+namespace {}
+void run_sim_intercepter() {
+  using namespace Oop;
+  CarSimIntercepter intercepter;
+  dag::DagFactory<PowerfulCarSimulatorBlueprint, dag::Select<dag::Nothing>, CarSimIntercepter>
+      factory(std::pmr::get_default_resource(), intercepter);
+  std::cout << "===========Running OOP simulation==========" << std::endl;
+  dag::unique_ptr<CarSimulator> simulator =
+      factory.create([](auto bp) -> auto & { return bp->carSimulator(); });
+  simulator->start();
+  std::cout << "===========Ending OOP simulation==========" << std::endl;
 }
