@@ -132,12 +132,27 @@ struct CarSimIntercepter : public dag::DefaultIntercepter {
   }
 };
 
-struct CarSimCreator : public dag::DefaultCreater {
-  using dag::DefaultCreater::create;
+struct CarSimCreator {
   template <typename T, typename... Args>
   dag::unique_ptr<T> create(std::pmr::memory_resource *memory, Args &&...args) {
-    std::cout << "Intercepted Engine creation. " << std::endl;
-    return dag::make_unique_on_memory<T>(memory, std::forward<Args>(args)...);
+    return Helper<T>::create(memory, std::forward<Args>(args)...);
+  }
+
+ private:
+  template <typename T>
+  struct Helper {
+    template <typename... Args>
+    static dag::unique_ptr<T> create(std::pmr::memory_resource *memory, Args &&...args) {
+      return dag::make_unique_on_memory<T>(memory, std::forward<Args>(args)...);
+    }
+  };
+};
+template <>
+struct CarSimCreator::Helper<V6Engine> {
+  template <typename... Args>
+  static dag::unique_ptr<V6Engine> create(std::pmr::memory_resource *memory, Args &&...args) {
+    std::cout << "Before create V6Engine. " << std::endl;
+    return dag::make_unique_on_memory<V6Engine>(memory, std::forward<Args>(args)...);
   }
 };
 
@@ -244,12 +259,25 @@ void run_sim_template() {
   std::cout << "===========Ending template===========" << std::endl;
 }
 
-namespace {}
 void run_sim_intercepter() {
   using namespace Oop;
   CarSimIntercepter intercepter;
   dag::DagFactory<PowerfulCarSimulatorBlueprint, dag::Select<dag::Nothing>, CarSimIntercepter>
       factory(std::pmr::get_default_resource(), intercepter);
+  std::cout << "===========Running OOP simulation==========" << std::endl;
+  dag::unique_ptr<CarSimulator> simulator =
+      factory.create([](auto bp) -> auto & { return bp->carSimulator(); });
+  simulator->start();
+  std::cout << "===========Ending OOP simulation==========" << std::endl;
+}
+
+void run_sim_creater() {
+  using namespace Oop;
+  dag::DefaultIntercepter intercepter;
+  CarSimCreator creater;
+  dag::DagFactory<PowerfulCarSimulatorBlueprint, dag::Select<dag::Nothing>, dag::DefaultIntercepter,
+                  CarSimCreator>
+      factory(std::pmr::get_default_resource(), intercepter, creater);
   std::cout << "===========Running OOP simulation==========" << std::endl;
   dag::unique_ptr<CarSimulator> simulator =
       factory.create([](auto bp) -> auto & { return bp->carSimulator(); });
