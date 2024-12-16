@@ -7,3 +7,8 @@ add_executable(doc_snippets
 )
 
 target_link_libraries(doc_snippets PRIVATE dag_factory)
+
+add_executable(doc_sanity
+    hello_world.cpp
+)
+target_link_libraries(doc_sanity PRIVATE dag_factory)

@@ -109,18 +109,19 @@ Before try to answer these questions, let's examine the characteristics C++ deve
 - **Difficult Diagnosis**: Troubleshooting issues can be challenging.
 - **Hidden Semantics**: Unexpected behaviors due to hidden semantics can cause surprises.
 
-### The Dicision
+### The Answer
+
 The manual dependency injection methods previously mentioned actually meet 7 out of 10 characteristics developers like and do not have any characteristics developers dislike. Their score is even higher than most of the existing DI frameworks. 
 
 The preference for manual dependency injection is not without merit. It reflects the views of a significant portion of C++ developers who value simplicity and explicitness over a comprehensive feature set.
 
 Instead of teaching C++ developers to adopt dependency injection methods and concepts borrowed from other languages, Dag_factory aims to enhance the existing dependency injection techniques that C++ developers are already familiar with and improve upon them.
 
-Using the **factory** approach as the basis, Dag_factory introduces enhancements to achieve features typically found in a DI framework. As a principle, Dag_factory only adds features that can be achieved without touching any areas that developers dislike.
+Using the **factory** approach as the basis, Dag_factory introduces enhancements to achieve essential dependency injection features typically found in a DI framework.
 
 Here is a brief list of the features Dag_factory provides:
 
-- Classic virtual function-based injection.
+- Classic interface based injection.
 - Template-based injection.
 - Scoping support, allowing a single instance of a given class to be shared within a scope.
 - Nested injection.
