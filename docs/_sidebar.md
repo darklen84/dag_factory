@@ -1,4 +1,7 @@
 * **Getting started**
-    * [Setup](setup.md)
+    * [About](README.md)
+    * [Installation](setup.md)
     * [Quick Start](quick_start.md)
-* [Guide](guide.md )
+* **Documentations**
+    * [Why is it Created](background.md)
+    * [Guide](guide.md )

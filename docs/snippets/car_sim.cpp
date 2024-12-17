@@ -109,60 +109,29 @@ namespace Template {
 
 struct V6Engine {
   ~V6Engine() { std::cout << "V6 Engine destroyed" << std::endl; }
-  void start() { std::cout << "V6 Engine started" << std::endl; }
-  unsigned int getSpeed() { return m_speed; }
-  void setSpeed(unsigned int speed) {
-    std::cout << "V6 Engine speed set to " << speed << std::endl;
-    m_speed = speed;
-  }
-  unsigned int m_speed = 180;
 };
 
 struct I4Engine {
   ~I4Engine() { std::cout << "I4 Engine destroyed" << std::endl; }
-  void start() { std::cout << "I4 Engine started" << std::endl; }
-  unsigned int getSpeed() { return m_speed; }
-  void setSpeed(unsigned int speed) {
-    std::cout << "I4 Engine speed set to " << speed << std::endl;
-    m_speed = speed;
-  }
-  unsigned int m_speed = 120;
 };
 
 template <typename Engine>
 struct AutoTransmission {
-  explicit AutoTransmission(Engine &engine) : m_engine(engine) {
-    std::cout << "Auto Transmission created" << std::endl;
-  }
+  explicit AutoTransmission(Engine &engine) {}
   ~AutoTransmission() { std::cout << "Auto Transmission destroyed" << std::endl; }
-  void shift(unsigned int gear) {
-    std::cout << "Auto Transmission shifted to " << gear << std::endl;
-    m_engine.setSpeed(gear * 1000);
-  }
-  Engine &m_engine;
 };
 
 template <typename Engine>
 struct CVTTransmission {
-  explicit CVTTransmission(Engine &engine) : m_engine(engine) {
-    std::cout << "CVT Transmission created" << std::endl;
-  }
+  explicit CVTTransmission(Engine &engine) {}
   ~CVTTransmission() { std::cout << "CVT Transmission destroyed" << std::endl; }
-  void shift(unsigned int gear) {
-    std::cout << "CVT Transmission shifted to " << gear << std::endl;
-    m_engine.setSpeed(gear * 800);
-  }
-  Engine &m_engine;
 };
 
 template <typename Engine, typename Transmission>
 struct CarSimulator {
   CarSimulator(Engine &engine, Transmission &transmission)
       : m_engine(engine), m_transmission(transmission) {}
-  void start() {
-    m_engine.start();
-    m_transmission.shift(1);
-  }
+  void start() { std::cout << "CarSimulator started" << std::endl; }
   Engine &m_engine;
   Transmission &m_transmission;
 };
