@@ -106,7 +106,7 @@ struct CarSimCreator::Helper<I4Engine> {
 }  // namespace Oop
 
 namespace Template {
-
+/// [car_sim_template]
 struct V6Engine {
   ~V6Engine() { std::cout << "V6 Engine destroyed" << std::endl; }
 };
@@ -135,7 +135,9 @@ struct CarSimulator {
   Engine &m_engine;
   Transmission &m_transmission;
 };
+/// [car_sim_template]
 
+/// [car_sim_template_blueprint]
 template <typename Derived, typename T>
 struct CarSimulatorBlueprint : public dag::Blueprint<T> {
   Derived *self = static_cast<Derived *>(this);
@@ -145,7 +147,9 @@ struct CarSimulatorBlueprint : public dag::Blueprint<T> {
   auto &engine() dag_shared { make_node<I4Engine>(); }
   auto &transmission() dag_shared { return make_node_t<CVTTransmission>(self->engine()); }
 };
+/// [car_sim_template_blueprint]
 
+/// [car_sim_template_powerful_blueprint]
 template <typename T>
 struct PowerfulCarSimulatorBlueprint
     : public CarSimulatorBlueprint<PowerfulCarSimulatorBlueprint<T>, T> {
@@ -153,6 +157,7 @@ struct PowerfulCarSimulatorBlueprint
   auto &engine() dag_shared { return make_node<V6Engine>(); }
   auto &transmission() dag_shared { return make_node_t<AutoTransmission>(engine()); }
 };
+/// [car_sim_template_powerful_blueprint]
 
 }  // namespace Template
 /// [car_sim_oop_blueprint_test]

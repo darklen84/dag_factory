@@ -1,7 +1,7 @@
 * **Getting started**
     * [About](README.md)
     * [Installation](setup.md)
-    * [Quick Start](quick_start.md)
+    * [Tutorial](tutorial.md)
 * **Documentations**
-    * [Why is it Created](background.md)
+    * [Why Choose Dag_Factory](background.md)
     * [Guide](guide.md )

@@ -106,3 +106,18 @@ CarSimulator destroyed
 CVT Transmission destroyed
 I4 Engine destroyed
 ```
+## Template Injection
+
+Imagine you have identified a performance bottleneck caused by virtual function calls. To eliminate this overhead, you have templatized the dependent classes to avoid using virtual functions.
+
+Here is the new classes look like:
+
+[snippet](snippets/car_sim.cpp ':include :type=code :fragment=car_sim_template')
+
+You just need small changes to the BluePrint to make it work:
+
+[snippet](snippets/car_sim.cpp ':include :type=code :fragment=car_sim_template_blueprint')
+
+The BluePrint can also be override using Curious Recursive Template (CRTP):
+
+[snippet](snippets/car_sim.cpp ':include :type=code :fragment=car_sim_template_powerful_blueprint')
